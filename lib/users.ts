@@ -9,9 +9,6 @@ export interface UserData {
   password: string;
   nombre: string;
   apellido: string;
-  grado: string;
-  cip: string;
-  dni: string;
   email: string;
   role: 'admin' | 'user';
   membershipExpiry: string | null;
@@ -56,9 +53,6 @@ export async function seedDefaultAdmin(): Promise<void> {
       password: '123456',
       nombre: 'Administrador',
       apellido: 'General',
-      grado: 'GP',
-      cip: '00000000',
-      dni: '00000000',
       email: '',
       role: 'admin',
       membershipExpiry: null,

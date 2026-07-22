@@ -14,6 +14,7 @@ import { questions, categories, Question, categoryNames, getCategoryKey, getCate
 import { usePWA } from './usePWA';
 import { getUserByUsername, createUser, getAllUsers, updateUser, deleteUser, seedDefaultAdmin } from '../lib/users';
 import type { UserData } from '../lib/users';
+import { checkRateLimit, sanitizeUserInput, validateUsername, validatePassword, validateEmail } from '../lib/security';
 
 // ============== TYPES ==============
 interface User {
@@ -22,9 +23,6 @@ interface User {
   password: string;
   nombre: string;
   apellido: string;
-  grado: string;
-  cip: string;
-  dni: string;
   email: string;
   role: 'admin' | 'user';
   membershipExpiry: string | null;
@@ -218,7 +216,13 @@ function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
     setError('');
 
     try {
-      const found = await getUserByUsername(username);
+      if (!checkRateLimit(username, 10, 60000)) {
+        setError('Demasiados intentos. Espere 1 minuto.');
+        setLoading(false);
+        return;
+      }
+      const cleanUsername = sanitizeUserInput({ username }).username;
+      const found = await getUserByUsername(cleanUsername);
       
       if (found && found.password === password) {
         if (found.status === 'blocked') {
@@ -356,21 +360,11 @@ function RegisterPage({ onRegister, onBack }: { onRegister: (user: User) => void
     confirmPassword: '',
     nombre: '',
     apellido: '',
-    grado: 'SIP',
-    cip: '',
-    dni: '',
     email: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const grados = [
-    'GP', 'TC', 'TD', 'TE', 'TF', 'TG',
-    'SI', 'SII', 'SIII', 'SIV', 'SV',
-    'CIP', 'CII', 'CIII', 'CIV', 'CV',
-    'SIP', 'SII', 'SIII', 'SIV', 'SV'
-  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -378,27 +372,36 @@ function RegisterPage({ onRegister, onBack }: { onRegister: (user: User) => void
     setLoading(true);
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Las contraseñas no coinciden');
+      setError('Las contrasenas no coinciden');
       setLoading(false);
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres');
-      setLoading(false);
-      return;
+    const pwError = validatePassword(formData.password);
+    if (pwError) { setError(pwError); setLoading(false); return; }
+
+    const userError = validateUsername(formData.username);
+    if (userError) { setError(userError); setLoading(false); return; }
+
+    if (formData.email) {
+      const emailError = validateEmail(formData.email);
+      if (emailError) { setError(emailError); setLoading(false); return; }
     }
+
+    const clean = sanitizeUserInput({
+      username: formData.username,
+      nombre: formData.nombre,
+      apellido: formData.apellido,
+      email: formData.email,
+    });
 
     const newUser: User = {
       id: Date.now().toString(),
-      username: formData.username,
+      username: clean.username,
       password: formData.password,
-      nombre: formData.nombre,
-      apellido: formData.apellido,
-      grado: formData.grado,
-      cip: formData.cip,
-      dni: formData.dni,
-      email: formData.email,
+      nombre: clean.nombre,
+      apellido: clean.apellido,
+      email: clean.email,
       role: 'user',
       membershipExpiry: null,
       createdAt: new Date().toISOString(),
@@ -480,51 +483,14 @@ function RegisterPage({ onRegister, onBack }: { onRegister: (user: User) => void
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Grado</label>
-                <select
-                  value={formData.grado}
-                  onChange={(e) => setFormData({...formData, grado: e.target.value})}
-                  className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue"
-                >
-                  {grados.map(g => (
-                    <option key={g} value={g}>{g}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">CIP</label>
-                <input
-                  type="text"
-                  value={formData.cip}
-                  onChange={(e) => setFormData({...formData, cip: e.target.value})}
-                  className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue"
-                  placeholder="Ej: 31444673"
-                />
-              </div>
-            </div>
-
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">DNI</label>
-              <input
-                type="text"
-                value={formData.dni}
-                onChange={(e) => setFormData({...formData, dni: e.target.value})}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue"
-                placeholder="8 dígitos"
-                maxLength={8}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Correo</label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
                 className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue"
-                placeholder="correo@pnp.gob.pe"
+                placeholder="correo@ejemplo.com"
               />
             </div>
 
@@ -657,8 +623,8 @@ function DashboardPage({ user, onStartExam, onViewHistory, onLogout, onGoAdmin, 
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium text-white">{user.grado} {user.nombre} {user.apellido}</p>
-              <p className="text-xs text-slate-400">CIP: {user.cip}</p>
+              <p className="text-sm font-medium text-white">{user.nombre} {user.apellido}</p>
+              <p className="text-xs text-slate-400">{user.email || user.username}</p>
             </div>
             {user.role === 'admin' && (
               <button
@@ -695,7 +661,7 @@ function DashboardPage({ user, onStartExam, onViewHistory, onLogout, onGoAdmin, 
           className="mb-8"
         >
           <h2 className="text-2xl font-bold text-white mb-2">
-            Bienvenido, <span className="text-gold">{user.grado} {user.apellido}</span>
+            Bienvenido, <span className="text-gold">{user.apellido}</span>
           </h2>
           <p className="text-slate-400">Prepárate para tu examen de ascenso con nuestra plataforma de simulación</p>
           
@@ -1853,8 +1819,7 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
     u.username.toLowerCase().includes(search.toLowerCase()) ||
     u.nombre.toLowerCase().includes(search.toLowerCase()) ||
     u.apellido.toLowerCase().includes(search.toLowerCase()) ||
-    u.cip.includes(search) ||
-    u.dni.includes(search)
+    (u.email && u.email.toLowerCase().includes(search.toLowerCase()))
   );
 
   const isExpired = (u: User) => {
@@ -1900,7 +1865,7 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input type="text" value={search} onChange={e => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:border-tactical-blue"
-              placeholder="Buscar por nombre, usuario, CIP o DNI..." />
+              placeholder="Buscar por nombre, usuario o email..." />
           </div>
           <button onClick={() => setShowAdd(true)}
             className="px-4 py-2.5 bg-tactical-blue hover:bg-tactical-blue-dark text-white font-medium rounded-lg flex items-center gap-2 transition-colors">
@@ -1920,15 +1885,13 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-medium text-white">{u.grado} {u.nombre} {u.apellido}</span>
+                      <span className="font-medium text-white">{u.nombre} {u.apellido}</span>
                       {u.role === 'admin' && <span className="px-2 py-0.5 bg-gold/20 text-gold text-xs rounded">ADMIN</span>}
                       {u.status === 'blocked' && <span className="px-2 py-0.5 bg-danger/20 text-danger text-xs rounded">BLOQUEADO</span>}
                       {expired && <span className="px-2 py-0.5 bg-warning/20 text-warning text-xs rounded">EXPIRADO</span>}
                     </div>
                     <div className="text-xs text-slate-400 flex flex-wrap gap-3">
                       <span>Usuario: <span className="text-slate-300">{u.username}</span></span>
-                      <span>CIP: <span className="text-slate-300">{u.cip}</span></span>
-                      <span>DNI: <span className="text-slate-300">{u.dni}</span></span>
                       <span>Email: <span className="text-slate-300">{u.email || '-'}</span></span>
                     </div>
                     <div className="text-xs text-slate-500 mt-1">
@@ -1999,24 +1962,30 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
 // ============== ADD USER MODAL ==============
 function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User) => void }) {
   const [form, setForm] = useState({
-    username: '', password: '', nombre: '', apellido: '', grado: 'SIP',
-    cip: '', dni: '', email: '', role: 'user' as 'admin' | 'user',
+    username: '', password: '', nombre: '', apellido: '', email: '',
     membershipDays: '' as string | number
   });
   const [error, setError] = useState('');
 
-  const grados = ['GP', 'TC', 'TD', 'TE', 'TF', 'TG', 'SI', 'SII', 'SIII', 'SIV', 'SV', 'CIP', 'CII', 'CIII', 'CIV', 'CV', 'SIP'];
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.username || !form.password || !form.nombre || !form.apellido) {
-      setError('Complete los campos obligatorios');
+      setError('Complete usuario, contrasena, nombre y apellido');
+      return;
+    }
+    if (form.password.length < 6) {
+      setError('La contrasena debe tener al menos 6 caracteres');
       return;
     }
     const expiry = form.membershipDays ? new Date(Date.now() + Number(form.membershipDays) * 86400000).toISOString() : null;
     onAdd({
       id: Date.now().toString(),
-      ...form,
+      username: form.username,
+      password: form.password,
+      nombre: form.nombre,
+      apellido: form.apellido,
+      email: form.email,
+      role: 'user',
       membershipExpiry: expiry,
       createdAt: new Date().toISOString(),
       status: 'active'
@@ -2027,7 +1996,7 @@ function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-        className="glass rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        className="glass rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-bold text-white mb-4">Nuevo Usuario</h3>
         {error && <div className="bg-danger/20 border border-danger/50 rounded-lg p-2 mb-3 text-danger text-sm">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -2043,46 +2012,15 @@ function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User
                 className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" required />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Usuario *</label>
-              <input type="text" value={form.username} onChange={e => setForm({...form, username: e.target.value})}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" required />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Contrasena *</label>
-              <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" required />
-            </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Usuario *</label>
+            <input type="text" value={form.username} onChange={e => setForm({...form, username: e.target.value})}
+              className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" required />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Grado</label>
-              <select value={form.grado} onChange={e => setForm({...form, grado: e.target.value})}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue">
-                {grados.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Rol</label>
-              <select value={form.role} onChange={e => setForm({...form, role: e.target.value as 'admin' | 'user'})}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue">
-                <option value="user">Usuario</option>
-                <option value="admin">Administrador</option>
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">CIP</label>
-              <input type="text" value={form.cip} onChange={e => setForm({...form, cip: e.target.value})}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">DNI</label>
-              <input type="text" value={form.dni} onChange={e => setForm({...form, dni: e.target.value})}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" maxLength={8} />
-            </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Contrasena *</label>
+            <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})}
+              className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" required />
           </div>
           <div>
             <label className="block text-xs text-slate-400 mb-1">Email</label>
@@ -2090,18 +2028,18 @@ function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User
               className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Membresia (dias)</label>
+            <label className="block text-xs text-slate-400 mb-1">Membresia</label>
             <div className="grid grid-cols-4 gap-2">
               {[7, 30, 90, 365].map(d => (
                 <button key={d} type="button" onClick={() => setForm({...form, membershipDays: d})}
                   className={`py-1.5 text-xs rounded-lg border transition-colors ${
                     form.membershipDays === d ? 'border-tactical-blue bg-tactical-blue/20 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
                   }`}>
-                  {d} dias
+                  {d}d
                 </button>
               ))}
             </div>
-            <p className="text-xs text-slate-600 mt-1">Sin seleccion = acceso ilimitado</p>
+            <p className="text-xs text-slate-600 mt-1">Sin seleccion = ilimitado</p>
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors">Cancelar</button>
@@ -2116,15 +2054,15 @@ function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User
 // ============== EDIT USER MODAL ==============
 function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => void; onSave: (u: User) => void }) {
   const [form, setForm] = useState({
-    nombre: user.nombre, apellido: user.apellido, grado: user.grado,
-    cip: user.cip, dni: user.dni, email: user.email, role: user.role,
+    nombre: user.nombre, apellido: user.apellido, email: user.email,
     password: ''
   });
 
-  const grados = ['GP', 'TC', 'TD', 'TE', 'TF', 'TG', 'SI', 'SII', 'SIII', 'SIV', 'SV', 'CIP', 'CII', 'CIII', 'CIV', 'CV', 'SIP'];
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.nombre || !form.apellido) {
+      return;
+    }
     onSave({
       ...user,
       ...form,
@@ -2136,8 +2074,8 @@ function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => v
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-        className="glass rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-white mb-4">Editar Usuario: {user.username}</h3>
+        className="glass rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-bold text-white mb-4">Editar: {user.username}</h3>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -2151,42 +2089,13 @@ function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => v
                 className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Grado</label>
-              <select value={form.grado} onChange={e => setForm({...form, grado: e.target.value})}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue">
-                {grados.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Rol</label>
-              <select value={form.role} onChange={e => setForm({...form, role: e.target.value as 'admin' | 'user'})}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue">
-                <option value="user">Usuario</option>
-                <option value="admin">Administrador</option>
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">CIP</label>
-              <input type="text" value={form.cip} onChange={e => setForm({...form, cip: e.target.value})}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">DNI</label>
-              <input type="text" value={form.dni} onChange={e => setForm({...form, dni: e.target.value})}
-                className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" maxLength={8} />
-            </div>
-          </div>
           <div>
             <label className="block text-xs text-slate-400 mb-1">Email</label>
             <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})}
               className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Nueva contrasena (dejar vacio para no cambiar)</label>
+            <label className="block text-xs text-slate-400 mb-1">Nueva contrasena (vacio = no cambiar)</label>
             <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})}
               className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" />
           </div>
@@ -2203,7 +2112,7 @@ function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => v
 // ============== PROFILE PAGE ==============
 function ProfilePage({ user, onUpdate, onBack }: { user: User; onUpdate: (u: User) => void; onBack: () => void }) {
   const [form, setForm] = useState({
-    nombre: user.nombre, apellido: user.apellido, email: user.email, cip: user.cip, dni: user.dni
+    nombre: user.nombre, apellido: user.apellido, email: user.email
   });
   const [passwordForm, setPasswordForm] = useState({ current: '', newPass: '', confirm: '' });
   const [msg, setMsg] = useState('');
@@ -2300,8 +2209,8 @@ function ProfilePage({ user, onUpdate, onBack }: { user: User; onUpdate: (u: Use
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1">Grado</label>
-                  <p className="px-3 py-2 bg-navy-800/50 rounded-lg text-white text-sm">{user.grado}</p>
+                  <label className="block text-xs text-slate-400 mb-1">Usuario</label>
+                  <p className="px-3 py-2 bg-navy-800/50 rounded-lg text-white text-sm">{user.username}</p>
                 </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Rol</label>
@@ -2318,18 +2227,6 @@ function ProfilePage({ user, onUpdate, onBack }: { user: User; onUpdate: (u: Use
                   <label className="block text-xs text-slate-400 mb-1">Apellido</label>
                   <input type="text" value={form.apellido} onChange={e => setForm({...form, apellido: e.target.value})}
                     className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">CIP</label>
-                  <input type="text" value={form.cip} onChange={e => setForm({...form, cip: e.target.value})}
-                    className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">DNI</label>
-                  <input type="text" value={form.dni} onChange={e => setForm({...form, dni: e.target.value})}
-                    className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" maxLength={8} />
                 </div>
               </div>
               <div>
