@@ -868,7 +868,7 @@ function DashboardPage({ user, onStartExam, onViewHistory, onLogout, onGoAdmin, 
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="flex flex-col sm:flex-row gap-4"
+          className="flex flex-col sm:flex-row gap-4 mb-8"
         >
           <button
             onClick={handleStart}
@@ -885,6 +885,38 @@ function DashboardPage({ user, onStartExam, onViewHistory, onLogout, onGoAdmin, 
             <BarChart3 className="w-5 h-5" />
             Ver Historial
           </button>
+        </motion.div>
+
+        {/* Simulacro Completo por Tema */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.35 }}
+        >
+          <div className="glass rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
+              <Target className="w-5 h-5 text-gold" />
+              Simulacro Completo por Tema
+            </h3>
+            <p className="text-xs text-slate-500 mb-4">Todas las preguntas de un solo tema. Tiempo: 1.5 min por pregunta</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {availableCategories.map((cat) => {
+                const count = questions.filter(q => q.category === cat).length;
+                const timeMin = Math.ceil(count * 1.5);
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => onStartExam({ numQuestions: count, categories: [cat] })}
+                    className="p-3 rounded-xl border border-navy-700 bg-navy-800/50 hover:border-gold hover:bg-gold/5 transition-all duration-300 text-left group"
+                  >
+                    <span className="text-sm font-medium text-white group-hover:text-gold block">{getCategoryDisplayName(getCategoryKey(cat))}</span>
+                    <span className="text-xs text-slate-500">{count} preguntas</span>
+                    <span className="text-xs text-gold/70 ml-2">{timeMin >= 60 ? `${Math.floor(timeMin/60)}h ${timeMin%60}m` : `${timeMin}m`}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </motion.div>
       </div>
     </motion.div>
@@ -909,6 +941,11 @@ function ConfigPage({ config, onStart, onBack }: {
     100: 150 * 60,
   };
 
+  const getTimeLimit = (count: number) => {
+    if (timeLimits[count]) return timeLimits[count];
+    return Math.ceil(count * 1.5) * 60;
+  };
+
   // Calculate questions per category for display
   const categoryStats = config.categories.map(cat => ({
     name: getCategoryDisplayName(getCategoryKey(cat)),
@@ -923,7 +960,7 @@ function ConfigPage({ config, onStart, onBack }: {
     const selected = shuffled.slice(0, config.numQuestions);
     
     setTimeout(() => {
-      onStart(selected, timeLimits[config.numQuestions]);
+      onStart(selected, getTimeLimit(config.numQuestions));
     }, 500);
   };
 
@@ -954,7 +991,10 @@ function ConfigPage({ config, onStart, onBack }: {
             <div className="flex justify-between items-center p-3 bg-navy-800/50 rounded-lg">
               <span className="text-slate-400">Tiempo:</span>
               <span className="text-white font-semibold">
-                {config.numQuestions === 10 ? '15 min' : config.numQuestions === 50 ? '1h 15min' : '2h 30min'}
+                {(() => {
+                  const totalMin = Math.ceil(getTimeLimit(config.numQuestions) / 60);
+                  return totalMin >= 60 ? `${Math.floor(totalMin/60)}h ${totalMin%60}min` : `${totalMin} min`;
+                })()}
               </span>
             </div>
             <div className="flex justify-between items-center p-3 bg-navy-800/50 rounded-lg">
@@ -1103,7 +1143,9 @@ function ExamPage({ questions: examQuestions, state, setState, onFinish }: {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const timePercentage = (state.timeRemaining / (examQuestions.length === 10 ? 900 : examQuestions.length === 50 ? 4500 : 9000)) * 100;
+  const totalTime = state.timeRemaining + (state.answers.filter(a => a !== null).length > 0 ? 0 : 0);
+  const totalExamTime = examQuestions.length <= 10 ? 900 : examQuestions.length <= 50 ? 4500 : examQuestions.length <= 100 ? 9000 : Math.ceil(examQuestions.length * 1.5) * 60;
+  const timePercentage = (state.timeRemaining / totalExamTime) * 100;
   const isTimeLow = state.timeRemaining < 300;
 
   return (
