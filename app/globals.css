@@ -1,0 +1,206 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  --navy-900: #0F172A;
+  --navy-800: #1E293B;
+  --navy-700: #334155;
+  --tactical-blue: #1E40AF;
+  --tactical-blue-light: #3B82F6;
+  --gold: #EAB308;
+  --gold-light: #FACC15;
+  --success: #22C55E;
+  --danger: #EF4444;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--navy-900);
+  color: #F1F5F9;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Safe area for notched phones */
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--navy-800);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--navy-700);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--tactical-blue);
+}
+
+/* Animations */
+@keyframes pulse-gold {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+.animate-pulse-gold {
+  animation: pulse-gold 2s infinite;
+}
+
+/* Glass effect */
+.glass {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--tactical-blue-light), var(--gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Button glow */
+.btn-glow {
+  box-shadow: 0 0 20px rgba(30, 64, 175, 0.4);
+  transition: all 0.3s ease;
+}
+
+.btn-glow:hover {
+  box-shadow: 0 0 30px rgba(30, 64, 175, 0.6);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 640px) {
+  .btn-glow:hover {
+    transform: none;
+  }
+}
+
+/* Card hover effect */
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+@media (hover: hover) {
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Progress bar animation */
+.progress-bar {
+  transition: width 0.5s ease-in-out;
+}
+
+/* Timer warning */
+.timer-warning {
+  color: var(--danger);
+  animation: pulse-gold 1s infinite;
+}
+
+/* Option hover */
+.option-hover {
+  transition: all 0.2s ease;
+}
+
+@media (hover: hover) {
+  .option-hover:hover {
+    background: rgba(30, 64, 175, 0.2);
+    border-color: var(--tactical-blue-light);
+  }
+}
+
+@media (max-width: 640px) {
+  .option-hover:active {
+    background: rgba(30, 64, 175, 0.2);
+    border-color: var(--tactical-blue-light);
+    transform: scale(0.98);
+  }
+}
+
+/* Selected option */
+.option-selected {
+  background: rgba(30, 64, 175, 0.3);
+  border-color: var(--tactical-blue-light);
+  box-shadow: 0 0 10px rgba(30, 64, 175, 0.3);
+}
+
+/* Correct answer */
+.option-correct {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: var(--success);
+}
+
+/* Wrong answer */
+.option-wrong {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: var(--danger);
+}
+
+/* Mobile-specific utilities */
+@media (max-width: 640px) {
+  .mobile-full {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+  
+  .mobile-compact {
+    padding: 0.5rem;
+  }
+  
+  .mobile-text-sm {
+    font-size: 0.75rem;
+  }
+}
+
+/* Prevent overscroll bounce on iOS */
+html {
+  overscroll-behavior: none;
+}
+
+/* Better touch targets for mobile */
+@media (max-width: 640px) {
+  button, a, input, select, textarea {
+    min-height: 44px;
+  }
+}

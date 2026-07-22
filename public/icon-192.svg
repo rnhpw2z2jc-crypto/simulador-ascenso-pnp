@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="32" fill="#0F172A"/>
+  <circle cx="96" cy="80" r="35" fill="none" stroke="#3B82F6" stroke-width="4"/>
+  <path d="M96 55 L96 35 L116 55 L96 55Z" fill="#3B82F6"/>
+  <path d="M96 55 L96 35 L76 55 L96 55Z" fill="#3B82F6"/>
+  <path d="M70 70 L50 90 L70 90Z" fill="#3B82F6"/>
+  <path d="M122 70 L142 90 L122 90Z" fill="#3B82F6"/>
+  <text x="96" y="150" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="24" font-weight="900" fill="#EAB308">PNP</text>
+  <text x="96" y="172" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#94A3B8">SIMULADOR</text>
+</svg>
