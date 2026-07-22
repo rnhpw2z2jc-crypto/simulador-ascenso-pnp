@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { questions, categories, Question, categoryNames, getCategoryKey, getCategoryDisplayName } from '../data/questions';
 import { usePWA } from './usePWA';
+import { getUserByUsername, createUser, getAllUsers, updateUser, deleteUser, seedDefaultAdmin } from '../lib/users';
+import type { UserData } from '../lib/users';
 
 // ============== TYPES ==============
 interface User {
@@ -66,8 +68,9 @@ export default function Home() {
   const [examQuestions, setExamQuestions] = useState<Question[]>([]);
   const { isInstallable, install } = usePWA();
 
-  // Check for existing session
+  // Check for existing session and seed admin
   useEffect(() => {
+    seedDefaultAdmin().catch(() => {});
     const savedUser = localStorage.getItem('simulador_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
@@ -209,17 +212,15 @@ function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    // Simulate API call
-    setTimeout(() => {
-      const users = JSON.parse(localStorage.getItem('simulador_users') || '[]');
-      const found = users.find((u: User) => u.username === username && u.password === password);
+    try {
+      const found = await getUserByUsername(username);
       
-      if (found) {
+      if (found && found.password === password) {
         if (found.status === 'blocked') {
           setError('Tu cuenta ha sido bloqueada. Contacta al administrador.');
           setLoading(false);
@@ -227,36 +228,12 @@ function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
         }
         onLogin(found);
       } else {
-        // Demo login
-        if (username === 'admin' && password === '123456') {
-          const demoUser: User = {
-            id: '1',
-            username: 'admin',
-            password: '123456',
-            nombre: 'Administrador',
-            apellido: 'Demo',
-            grado: 'SIP',
-            cip: '00000000',
-            dni: '00000000',
-            email: 'admin@pnp.gob.pe',
-            role: 'admin',
-            membershipExpiry: null,
-            createdAt: new Date().toISOString(),
-            status: 'active'
-          };
-          // Save to users list if not already there
-          const users = JSON.parse(localStorage.getItem('simulador_users') || '[]');
-          if (!users.find((u: User) => u.username === 'admin')) {
-            users.push(demoUser);
-            localStorage.setItem('simulador_users', JSON.stringify(users));
-          }
-          onLogin(demoUser);
-        } else {
-          setError('Credenciales incorrectas');
-        }
+        setError('Credenciales incorrectas');
       }
-      setLoading(false);
-    }, 800);
+    } catch {
+      setError('Error de conexion. Intente de nuevo.');
+    }
+    setLoading(false);
   };
 
   return (
@@ -395,7 +372,7 @@ function RegisterPage({ onRegister, onBack }: { onRegister: (user: User) => void
     'SIP', 'SII', 'SIII', 'SIV', 'SV'
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -412,35 +389,35 @@ function RegisterPage({ onRegister, onBack }: { onRegister: (user: User) => void
       return;
     }
 
-    setTimeout(() => {
-      const users = JSON.parse(localStorage.getItem('simulador_users') || '[]');
-      
-      if (users.find((u: User) => u.username === formData.username)) {
+    const newUser: User = {
+      id: Date.now().toString(),
+      username: formData.username,
+      password: formData.password,
+      nombre: formData.nombre,
+      apellido: formData.apellido,
+      grado: formData.grado,
+      cip: formData.cip,
+      dni: formData.dni,
+      email: formData.email,
+      role: 'user',
+      membershipExpiry: null,
+      createdAt: new Date().toISOString(),
+      status: 'active'
+    };
+
+    try {
+      const existing = await getUserByUsername(formData.username);
+      if (existing) {
         setError('El usuario ya existe');
         setLoading(false);
         return;
       }
-
-      const newUser: User = {
-        id: Date.now().toString(),
-        username: formData.username,
-        password: formData.password,
-        nombre: formData.nombre,
-        apellido: formData.apellido,
-        grado: formData.grado,
-        cip: formData.cip,
-        dni: formData.dni,
-        email: formData.email,
-        role: 'user',
-        membershipExpiry: null,
-        createdAt: new Date().toISOString(),
-        status: 'active'
-      };
-
-      users.push(newUser);
-      localStorage.setItem('simulador_users', JSON.stringify(users));
+      await createUser(newUser);
       onRegister(newUser);
-    }, 800);
+    } catch {
+      setError('Error de conexion. Intente de nuevo.');
+    }
+    setLoading(false);
   };
 
   return (
@@ -1781,37 +1758,59 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('simulador_users') || '[]');
-    setUsers(saved);
+    loadUsers();
   }, []);
 
-  const saveUsers = (newUsers: User[]) => {
-    setUsers(newUsers);
-    localStorage.setItem('simulador_users', JSON.stringify(newUsers));
+  const loadUsers = async () => {
+    try {
+      await seedDefaultAdmin();
+      const all = await getAllUsers();
+      setUsers(all);
+    } catch {
+      console.error('Error loading users');
+    }
   };
 
-  const handleAddUser = (u: User) => {
-    saveUsers([...users, u]);
-    setShowAdd(false);
-    setMsg('Usuario creado exitosamente');
-    setTimeout(() => setMsg(''), 3000);
+  const handleAddUser = async (u: User) => {
+    try {
+      await createUser(u);
+      setUsers([...users, u]);
+      setShowAdd(false);
+      setMsg('Usuario creado exitosamente');
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Error al crear usuario');
+      setTimeout(() => setMsg(''), 3000);
+    }
   };
 
-  const handleDeleteUser = (id: string) => {
+  const handleDeleteUser = async (id: string) => {
     if (!confirm('¿Eliminar este usuario?')) return;
-    saveUsers(users.filter(u => u.id !== id));
-    setMsg('Usuario eliminado');
-    setTimeout(() => setMsg(''), 3000);
+    try {
+      await deleteUser(id);
+      setUsers(users.filter(u => u.id !== id));
+      setMsg('Usuario eliminado');
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Error al eliminar');
+      setTimeout(() => setMsg(''), 3000);
+    }
   };
 
-  const handleUpdateUser = (updated: User) => {
-    saveUsers(users.map(u => u.id === updated.id ? updated : u));
-    setEditUser(null);
-    setMsg('Usuario actualizado');
-    setTimeout(() => setMsg(''), 3000);
+  const handleUpdateUser = async (updated: User) => {
+    try {
+      await updateUser(updated);
+      setUsers(users.map(u => u.id === updated.id ? updated : u));
+      setEditUser(null);
+      setMsg('Usuario actualizado');
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Error al actualizar');
+      setTimeout(() => setMsg(''), 3000);
+    }
   };
 
-  const handleSetMembership = (id: string, days: number | null) => {
+  const handleSetMembership = async (id: string, days: number | null) => {
     const updated = users.map(u => {
       if (u.id === id) {
         const expiry = days !== null
@@ -1821,12 +1820,19 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
       }
       return u;
     });
-    saveUsers(updated);
-    setMsg(days !== null ? `Membresia: ${days} dias` : 'Membresia removida');
-    setTimeout(() => setMsg(''), 3000);
+    try {
+      const target = updated.find(u => u.id === id);
+      if (target) await updateUser(target);
+      setUsers(updated);
+      setMsg(days !== null ? `Membresia: ${days} dias` : 'Membresia removida');
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Error al actualizar membresia');
+      setTimeout(() => setMsg(''), 3000);
+    }
   };
 
-  const handleToggleStatus = (id: string) => {
+  const handleToggleStatus = async (id: string) => {
     const updated = users.map(u => {
       if (u.id === id) {
         const newStatus = u.status === 'blocked' ? 'active' : 'blocked';
@@ -1834,7 +1840,13 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
       }
       return u;
     });
-    saveUsers(updated);
+    try {
+      const target = updated.find(u => u.id === id);
+      if (target) await updateUser(target);
+      setUsers(updated);
+    } catch {
+      console.error('Error toggling status');
+    }
   };
 
   const filtered = users.filter(u =>
