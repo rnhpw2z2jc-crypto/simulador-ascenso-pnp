@@ -129,7 +129,6 @@ export default function Home() {
           <LoginPage 
             key="login"
             onLogin={handleLogin} 
-            onShowRegister={() => setCurrentPage('register')} 
           />
         )}
         {currentPage === 'register' && (
@@ -203,7 +202,7 @@ export default function Home() {
 }
 
 // ============== LOGIN PAGE ==============
-function LoginPage({ onLogin, onShowRegister }: { onLogin: (user: User) => void; onShowRegister: () => void }) {
+function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -366,18 +365,6 @@ function LoginPage({ onLogin, onShowRegister }: { onLogin: (user: User) => void;
               )}
             </button>
           </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-slate-400 text-sm">
-              ¿No tienes cuenta?{' '}
-              <button
-                onClick={onShowRegister}
-                className="text-gold hover:text-gold-light font-medium transition-colors"
-              >
-                Regístrate aquí
-              </button>
-            </p>
-          </div>
         </motion.div>
       </div>
     </motion.div>
