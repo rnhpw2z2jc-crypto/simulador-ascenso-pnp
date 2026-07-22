@@ -253,7 +253,7 @@ function LoginPage({ onLogin, onShowRegister }: { onLogin: (user: User) => void;
           }
           onLogin(demoUser);
         } else {
-          setError('Credenciales incorrectas. Use: admin / 123456');
+          setError('Credenciales incorrectas');
         }
       }
       setLoading(false);
@@ -376,12 +376,6 @@ function LoginPage({ onLogin, onShowRegister }: { onLogin: (user: User) => void;
               >
                 Regístrate aquí
               </button>
-            </p>
-          </div>
-
-          <div className="mt-4 p-3 bg-navy-800/50 rounded-lg">
-            <p className="text-xs text-slate-500 text-center">
-              Demo: <span className="text-slate-400">admin</span> / <span className="text-slate-400">123456</span>
             </p>
           </div>
         </motion.div>
