@@ -15,6 +15,9 @@ import { usePWA } from './usePWA';
 import { getUserByUsername, createUser, getAllUsers, updateUser, deleteUser, seedDefaultAdmin } from '../lib/users';
 import type { UserData } from '../lib/users';
 import { checkRateLimit, sanitizeUserInput, validateUsername, validatePassword, validateEmail } from '../lib/security';
+import { getDeviceId, getDeviceInfo } from '../lib/device';
+import { logAccessAttempt, getAccessLogs } from '../lib/accessLog';
+import type { AccessLogEntry } from '../lib/accessLog';
 
 // ============== TYPES ==============
 interface User {
@@ -28,6 +31,8 @@ interface User {
   membershipExpiry: string | null;
   createdAt: string;
   status: 'active' | 'expired' | 'blocked';
+  deviceId: string | null;
+  deviceLocked: boolean;
 }
 
 interface ExamConfig {
@@ -230,7 +235,50 @@ function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
           setLoading(false);
           return;
         }
-        onLogin(found);
+
+        const currentDeviceId = await getDeviceId();
+        const { platform, browser } = getDeviceInfo();
+
+        if (found.deviceLocked && found.deviceId && found.deviceId !== currentDeviceId) {
+          await logAccessAttempt({
+            userId: found.id,
+            username: found.username,
+            deviceId: currentDeviceId,
+            platform,
+            browser,
+            status: 'blocked',
+            reason: 'Dispositivo no coincide',
+          });
+          setError('Esta cuenta ya esta registrada en otro dispositivo. Si cambio de equipo, comuniquese con el administrador.');
+          setLoading(false);
+          return;
+        }
+
+        if (!found.deviceLocked || !found.deviceId) {
+          const updatedUser = { ...found, deviceId: currentDeviceId, deviceLocked: true };
+          await updateUser(updatedUser);
+          await logAccessAttempt({
+            userId: found.id,
+            username: found.username,
+            deviceId: currentDeviceId,
+            platform,
+            browser,
+            status: 'allowed',
+            reason: 'Primer login o dispositivo liberado',
+          });
+          onLogin(updatedUser);
+        } else {
+          await logAccessAttempt({
+            userId: found.id,
+            username: found.username,
+            deviceId: currentDeviceId,
+            platform,
+            browser,
+            status: 'allowed',
+            reason: 'Dispositivo coincide',
+          });
+          onLogin(found);
+        }
       } else {
         setError('Credenciales incorrectas');
       }
@@ -395,6 +443,7 @@ function RegisterPage({ onRegister, onBack }: { onRegister: (user: User) => void
       email: formData.email,
     });
 
+    const currentDeviceId = await getDeviceId();
     const newUser: User = {
       id: Date.now().toString(),
       username: clean.username,
@@ -405,7 +454,9 @@ function RegisterPage({ onRegister, onBack }: { onRegister: (user: User) => void
       role: 'user',
       membershipExpiry: null,
       createdAt: new Date().toISOString(),
-      status: 'active'
+      status: 'active',
+      deviceId: currentDeviceId,
+      deviceLocked: true,
     };
 
     try {
@@ -1764,6 +1815,9 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
   const [editUser, setEditUser] = useState<User | null>(null);
   const [search, setSearch] = useState('');
   const [msg, setMsg] = useState('');
+  const [tab, setTab] = useState<'users' | 'logs'>('users');
+  const [logs, setLogs] = useState<AccessLogEntry[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -1777,6 +1831,17 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
     } catch {
       console.error('Error loading users');
     }
+  };
+
+  const loadLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const entries = await getAccessLogs(200);
+      setLogs(entries);
+    } catch {
+      console.error('Error loading logs');
+    }
+    setLogsLoading(false);
   };
 
   const handleAddUser = async (u: User) => {
@@ -1857,6 +1922,21 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
     }
   };
 
+  const handleUnlockDevice = async (id: string) => {
+    const target = users.find(u => u.id === id);
+    if (!target) return;
+    const updated = { ...target, deviceId: null, deviceLocked: false };
+    try {
+      await updateUser(updated);
+      setUsers(users.map(u => u.id === id ? updated : u));
+      setMsg(`Dispositivo liberado para ${target.username}. Podra ingresar desde cualquier equipo.`);
+      setTimeout(() => setMsg(''), 4000);
+    } catch {
+      setMsg('Error al liberar dispositivo');
+      setTimeout(() => setMsg(''), 3000);
+    }
+  };
+
   const filtered = users.filter(u =>
     u.username.toLowerCase().includes(search.toLowerCase()) ||
     u.nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -1902,6 +1982,19 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
           </motion.div>
         )}
 
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6">
+          <button onClick={() => setTab('users')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'users' ? 'bg-tactical-blue/20 text-tactical-blue-light' : 'bg-navy-800 text-slate-400 hover:bg-navy-700'}`}>
+            <Users className="w-4 h-4 inline mr-1" /> Usuarios
+          </button>
+          <button onClick={() => { setTab('logs'); loadLogs(); }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'logs' ? 'bg-tactical-blue/20 text-tactical-blue-light' : 'bg-navy-800 text-slate-400 hover:bg-navy-700'}`}>
+            <FileText className="w-4 h-4 inline mr-1" /> Registro de Accesos
+          </button>
+        </div>
+
+        {tab === 'users' && (<>
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -1947,9 +2040,24 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
                         <span className="text-slate-400">Sin fecha (acceso ilimitado)</span>
                       )}
                     </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      Dispositivo: {u.deviceLocked ? (
+                        <span className="text-gold">Vinculado <span className="text-slate-600">({u.deviceId?.slice(0, 12)}...)</span></span>
+                      ) : (
+                        <span className="text-slate-400">Sin vincular</span>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 flex-shrink-0">
                     <button onClick={() => setEditUser(u)} className="px-3 py-1.5 bg-navy-700 hover:bg-navy-600 text-xs text-white rounded-lg transition-colors">Editar</button>
+                    <button onClick={() => handleUnlockDevice(u.id)}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                        u.deviceLocked ? 'bg-gold/20 text-gold hover:bg-gold/40' : 'bg-navy-700 text-slate-500'
+                      }`}
+                      title={u.deviceLocked ? 'Liberar dispositivo para que pueda ingresar desde otro equipo' : 'Sin dispositivo vinculado'}
+                    >
+                      {u.deviceLocked ? 'Liberar' : 'Sin vinc.'}
+                    </button>
                     <div className="relative group">
                       <button className="px-3 py-1.5 bg-tactical-blue/20 hover:bg-tactical-blue/40 text-xs text-tactical-blue-light rounded-lg transition-colors">Membresia</button>
                       <div className="absolute right-0 top-full mt-1 hidden group-hover:block z-10">
@@ -1989,6 +2097,47 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
             </div>
           )}
         </div>
+        </>)}
+
+        {tab === 'logs' && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-slate-300">Ultimos 200 intentos de acceso</h3>
+              <button onClick={loadLogs} className="px-3 py-1.5 bg-navy-700 hover:bg-navy-600 text-xs text-white rounded-lg transition-colors">
+                Actualizar
+              </button>
+            </div>
+            {logsLoading ? (
+              <div className="glass rounded-xl p-8 text-center">
+                <Loader2 className="w-6 h-6 text-tactical-blue-light animate-spin mx-auto mb-2" />
+                <p className="text-slate-400 text-sm">Cargando registros...</p>
+              </div>
+            ) : logs.length === 0 ? (
+              <div className="glass rounded-xl p-8 text-center">
+                <p className="text-slate-400">Sin registros de acceso</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {logs.map(log => (
+                  <div key={log.id} className={`glass rounded-lg p-3 border-l-4 ${log.status === 'allowed' ? 'border-l-success' : 'border-l-danger'}`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-medium text-white">{log.username}</span>
+                          <span className={`px-2 py-0.5 text-xs rounded ${log.status === 'allowed' ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`}>
+                            {log.status === 'allowed' ? ' Permitido' : ' Bloqueado'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500">{log.reason} | {log.platform} / {log.browser} | ID: {log.deviceId.slice(0, 16)}...</p>
+                      </div>
+                      <p className="text-xs text-slate-500">{new Date(log.timestamp).toLocaleString('es-PE')}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <AnimatePresence>
@@ -2030,7 +2179,9 @@ function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User
       role: 'user',
       membershipExpiry: expiry,
       createdAt: new Date().toISOString(),
-      status: 'active'
+      status: 'active',
+      deviceId: null,
+      deviceLocked: false,
     });
   };
 

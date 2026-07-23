@@ -14,6 +14,8 @@ export interface UserData {
   membershipExpiry: string | null;
   createdAt: string;
   status: 'active' | 'expired' | 'blocked';
+  deviceId: string | null;
+  deviceLocked: boolean;
 }
 
 const COLLECTION = 'users';
@@ -58,6 +60,8 @@ export async function seedDefaultAdmin(): Promise<void> {
       membershipExpiry: null,
       createdAt: new Date().toISOString(),
       status: 'active',
+      deviceId: null,
+      deviceLocked: false,
     });
   }
 }
