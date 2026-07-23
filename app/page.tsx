@@ -2277,26 +2277,32 @@ function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User
 function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => void; onSave: (u: User) => void }) {
   const [form, setForm] = useState({
     nombre: user.nombre, apellido: user.apellido, email: user.email,
-    password: ''
+    password: '', membershipDays: '' as string | number
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nombre || !form.apellido) {
-      return;
-    }
+    if (!form.nombre || !form.apellido) return;
+    const expiry = form.membershipDays
+      ? new Date(Date.now() + Number(form.membershipDays) * 86400000).toISOString()
+      : user.membershipExpiry;
     onSave({
       ...user,
       ...form,
-      password: form.password || user.password
+      membershipExpiry: expiry,
+      password: form.password || user.password,
     });
   };
+
+  const currentExpiry = user.membershipExpiry;
+  const isExpired = currentExpiry ? new Date(currentExpiry) < new Date() : false;
+  const daysLeft = currentExpiry ? Math.max(0, Math.ceil((new Date(currentExpiry).getTime() - Date.now()) / 86400000)) : null;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-        className="glass rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+        className="glass rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-bold text-white mb-4">Editar: {user.username}</h3>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
@@ -2320,6 +2326,28 @@ function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => v
             <label className="block text-xs text-slate-400 mb-1">Nueva contrasena (vacio = no cambiar)</label>
             <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})}
               className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Membresia</label>
+            {currentExpiry && (
+              <p className={`text-xs mb-2 ${isExpired ? 'text-danger' : 'text-success'}`}>
+                Actual: {isExpired ? 'Expirada' : `${daysLeft} dias restantes`} ({new Date(currentExpiry).toLocaleDateString('es-PE')})
+              </p>
+            )}
+            {!currentExpiry && (
+              <p className="text-xs text-slate-500 mb-2">Sin membresia (acceso ilimitado)</p>
+            )}
+            <div className="grid grid-cols-4 gap-2">
+              {[7, 15, 30, 60, 90, 180, 365].map(d => (
+                <button key={d} type="button" onClick={() => setForm({...form, membershipDays: d})}
+                  className={`py-1.5 text-xs rounded-lg border transition-colors ${
+                    form.membershipDays === d ? 'border-tactical-blue bg-tactical-blue/20 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+                  }`}>
+                  {d}d
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-600 mt-1">Sin seleccion = mantener actual</p>
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors">Cancelar</button>
