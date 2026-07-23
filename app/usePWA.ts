@@ -6,16 +6,34 @@ export function usePWA() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [hasUpdate, setHasUpdate] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Register service worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+      navigator.serviceWorker.register('/service-worker.js').then((reg) => {
+        reg.onupdatefound = () => {
+          const newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.onstatechange = () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                setHasUpdate(true);
+              }
+            };
+          }
+        };
+      }).catch(() => {});
+
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
     }
 
-    // Detect if already installed (standalone mode)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
       || (window.navigator as any).standalone === true;
     setIsInstalled(isStandalone);
@@ -51,5 +69,16 @@ export function usePWA() {
     return outcome === 'accepted';
   }, [deferredPrompt]);
 
-  return { isInstallable, isInstalled, install };
+  const applyUpdate = useCallback(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (reg && reg.waiting) {
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+      });
+    }
+    setHasUpdate(false);
+  }, []);
+
+  return { isInstallable, isInstalled, hasUpdate, install, applyUpdate };
 }

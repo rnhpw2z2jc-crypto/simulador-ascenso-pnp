@@ -69,7 +69,7 @@ export default function Home() {
   const [examState, setExamState] = useState<ExamState | null>(null);
   const [currentResult, setCurrentResult] = useState<ExamResult | null>(null);
   const [examQuestions, setExamQuestions] = useState<Question[]>([]);
-  const { isInstallable, install } = usePWA();
+  const { isInstallable, install, hasUpdate, applyUpdate } = usePWA();
 
   // Check for existing session and seed admin
   useEffect(() => {
@@ -155,6 +155,8 @@ export default function Home() {
             onGoProfile={() => setCurrentPage('profile')}
             isInstallable={isInstallable}
             onInstall={install}
+            hasUpdate={hasUpdate}
+            onApplyUpdate={applyUpdate}
           />
         )}
         {currentPage === 'config' && examConfig && (
@@ -604,7 +606,7 @@ function RegisterPage({ onRegister, onBack }: { onRegister: (user: User) => void
 }
 
 // ============== DASHBOARD PAGE ==============
-function DashboardPage({ user, onStartExam, onViewHistory, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall }: {
+function DashboardPage({ user, onStartExam, onViewHistory, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate }: {
   user: User;
   onStartExam: (config: ExamConfig) => void;
   onViewHistory: () => void;
@@ -613,6 +615,8 @@ function DashboardPage({ user, onStartExam, onViewHistory, onLogout, onGoAdmin, 
   onGoProfile: () => void;
   isInstallable: boolean;
   onInstall: () => void;
+  hasUpdate: boolean;
+  onApplyUpdate: () => void;
 }) {
   const [selectedQuestions, setSelectedQuestions] = useState(50);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['all']);
@@ -743,6 +747,30 @@ function DashboardPage({ user, onStartExam, onViewHistory, onLogout, onGoAdmin, 
             }
             return null;
           })()}
+
+          {hasUpdate && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 p-4 bg-gold/20 border border-gold/50 rounded-xl flex items-center justify-between gap-3"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gold/30 flex items-center justify-center flex-shrink-0">
+                  <Zap className="w-5 h-5 text-gold" />
+                </div>
+                <div>
+                  <p className="text-gold font-semibold text-sm">Actualizacion disponible</p>
+                  <p className="text-xs text-slate-400">Nueva version del simulador lista</p>
+                </div>
+              </div>
+              <button
+                onClick={onApplyUpdate}
+                className="px-4 py-2 bg-gold hover:bg-gold/80 text-navy-900 text-sm font-medium rounded-lg transition-colors flex-shrink-0"
+              >
+                Actualizar
+              </button>
+            </motion.div>
+          )}
 
           {isInstallable && (
             <motion.div 
