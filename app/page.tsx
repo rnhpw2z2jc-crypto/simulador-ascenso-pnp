@@ -723,25 +723,37 @@ function DashboardPage({ user, onStartExam, onViewHistory, onLogout, onGoAdmin, 
           
           {/* Membership Warning */}
           {user.membershipExpiry && (() => {
-            const remaining = Math.ceil((new Date(user.membershipExpiry).getTime() - Date.now()) / 86400000);
-            const expired = remaining <= 0;
+            const remainingMs = new Date(user.membershipExpiry).getTime() - Date.now();
+            const remainingDays = Math.ceil(remainingMs / 86400000);
+            const expired = remainingMs <= 0;
             if (expired) {
               return (
                 <div className="mt-4 p-4 bg-danger/20 border border-danger/50 rounded-xl flex items-center gap-3">
                   <AlertTriangle className="w-6 h-6 text-danger flex-shrink-0" />
                   <div>
-                    <p className="text-danger font-semibold">Membresía expirada</p>
+                    <p className="text-danger font-semibold">Membresia expirada</p>
                     <p className="text-sm text-slate-400">Tu acceso ha expirado. Contacta al administrador para renovar.</p>
                   </div>
                 </div>
               );
-            } else if (remaining <= 7) {
+            } else if (remainingDays <= 1) {
+              const remainingH = Math.max(1, Math.ceil(remainingMs / 3600000));
               return (
                 <div className="mt-4 p-4 bg-warning/20 border border-warning/50 rounded-xl flex items-center gap-3">
                   <AlertTriangle className="w-6 h-6 text-warning flex-shrink-0" />
                   <div>
-                    <p className="text-warning font-semibold">Membresía por vencer</p>
-                    <p className="text-sm text-slate-400">Tu membresía vence en {remaining} día{remaining !== 1 ? 's' : ''} ({new Date(user.membershipExpiry).toLocaleDateString('es-PE')})</p>
+                    <p className="text-warning font-semibold">Membresia por vencer</p>
+                    <p className="text-sm text-slate-400">Tu membresia vence en {remainingH}h. Contacta al administrador.</p>
+                  </div>
+                </div>
+              );
+            } else if (remainingDays <= 7) {
+              return (
+                <div className="mt-4 p-4 bg-warning/20 border border-warning/50 rounded-xl flex items-center gap-3">
+                  <AlertTriangle className="w-6 h-6 text-warning flex-shrink-0" />
+                  <div>
+                    <p className="text-warning font-semibold">Membresia por vencer</p>
+                    <p className="text-sm text-slate-400">Tu membresia vence en {remainingDays} dia{remainingDays !== 1 ? 's' : ''} ({new Date(user.membershipExpiry).toLocaleDateString('es-PE')})</p>
                   </div>
                 </div>
               );
@@ -1912,11 +1924,11 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
     }
   };
 
-  const handleSetMembership = async (id: string, days: number | null) => {
+  const handleSetMembership = async (id: string, hours: number | null) => {
     const updated = users.map(u => {
       if (u.id === id) {
-        const expiry = days !== null
-          ? new Date(Date.now() + days * 86400000).toISOString()
+        const expiry = hours !== null
+          ? new Date(Date.now() + hours * 3600000).toISOString()
           : null;
         return { ...u, membershipExpiry: expiry, status: 'active' as const };
       }
@@ -1926,7 +1938,8 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
       const target = updated.find(u => u.id === id);
       if (target) await updateUser(target);
       setUsers(updated);
-      setMsg(days !== null ? `Membresia: ${days} dias` : 'Membresia removida');
+      const label = hours !== null ? (hours < 24 ? `${hours}h` : `${hours / 24} dias`) : 'removida';
+      setMsg(`Membresia ${label}`);
       setTimeout(() => setMsg(''), 3000);
     } catch {
       setMsg('Error al actualizar membresia');
@@ -2091,10 +2104,10 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
                       <button className="px-3 py-1.5 bg-tactical-blue/20 hover:bg-tactical-blue/40 text-xs text-tactical-blue-light rounded-lg transition-colors">Membresia</button>
                       <div className="absolute right-0 top-full mt-1 hidden group-hover:block z-10">
                         <div className="bg-navy-800 border border-navy-700 rounded-lg p-2 shadow-xl min-w-[140px]">
-                          {[7, 15, 30, 60, 90, 180, 365].map(d => (
-                            <button key={d} onClick={() => handleSetMembership(u.id, d)}
+                          {[{ h: 12, label: '12h' }, { h: 168, label: '7d' }, { h: 360, label: '15d' }, { h: 720, label: '30d' }, { h: 1440, label: '60d' }, { h: 2160, label: '90d' }, { h: 4320, label: '180d' }, { h: 8760, label: '365d' }].map(o => (
+                            <button key={o.h} onClick={() => handleSetMembership(u.id, o.h)}
                               className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-navy-700 rounded transition-colors">
-                              {d} dias
+                              {o.label}
                             </button>
                           ))}
                           <hr className="border-navy-700 my-1" />
@@ -2183,7 +2196,7 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
 function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User) => void }) {
   const [form, setForm] = useState({
     username: '', password: '', nombre: '', apellido: '', email: '',
-    membershipDays: '' as string | number
+    membershipHours: '' as string | number
   });
   const [error, setError] = useState('');
 
@@ -2197,7 +2210,7 @@ function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User
       setError('La contrasena debe tener al menos 6 caracteres');
       return;
     }
-    const expiry = form.membershipDays ? new Date(Date.now() + Number(form.membershipDays) * 86400000).toISOString() : null;
+    const expiry = form.membershipHours ? new Date(Date.now() + Number(form.membershipHours) * 3600000).toISOString() : null;
     onAdd({
       id: Date.now().toString(),
       username: form.username,
@@ -2252,16 +2265,22 @@ function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User
           <div>
             <label className="block text-xs text-slate-400 mb-1">Membresia</label>
             <div className="grid grid-cols-4 gap-2">
-              {[7, 30, 90, 365].map(d => (
-                <button key={d} type="button" onClick={() => setForm({...form, membershipDays: d})}
+              {[
+                { h: 12, label: '12h' },
+                { h: 168, label: '7d' },
+                { h: 720, label: '30d' },
+                { h: 2160, label: '90d' },
+                { h: 8760, label: '365d' },
+              ].map(o => (
+                <button key={o.h} type="button" onClick={() => setForm({...form, membershipHours: o.h})}
                   className={`py-1.5 text-xs rounded-lg border transition-colors ${
-                    form.membershipDays === d ? 'border-tactical-blue bg-tactical-blue/20 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+                    form.membershipHours === o.h ? 'border-tactical-blue bg-tactical-blue/20 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
                   }`}>
-                  {d}d
+                  {o.label}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-slate-600 mt-1">Sin seleccion = ilimitado</p>
+            <p className="text-xs text-slate-600 mt-1">12h = prueba. Sin seleccion = ilimitado</p>
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors">Cancelar</button>
@@ -2277,14 +2296,14 @@ function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User
 function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => void; onSave: (u: User) => void }) {
   const [form, setForm] = useState({
     nombre: user.nombre, apellido: user.apellido, email: user.email,
-    password: '', membershipDays: '' as string | number
+    password: '', membershipHours: '' as string | number
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nombre || !form.apellido) return;
-    const expiry = form.membershipDays
-      ? new Date(Date.now() + Number(form.membershipDays) * 86400000).toISOString()
+    const expiry = form.membershipHours
+      ? new Date(Date.now() + Number(form.membershipHours) * 3600000).toISOString()
       : user.membershipExpiry;
     onSave({
       ...user,
@@ -2296,7 +2315,9 @@ function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => v
 
   const currentExpiry = user.membershipExpiry;
   const isExpired = currentExpiry ? new Date(currentExpiry) < new Date() : false;
-  const daysLeft = currentExpiry ? Math.max(0, Math.ceil((new Date(currentExpiry).getTime() - Date.now()) / 86400000)) : null;
+  const timeLeft = currentExpiry ? Math.max(0, new Date(currentExpiry).getTime() - Date.now()) : null;
+  const daysLeft = timeLeft !== null ? Math.floor(timeLeft / 86400000) : null;
+  const hoursLeft = timeLeft !== null ? Math.floor((timeLeft % 86400000) / 3600000) : null;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -2331,23 +2352,32 @@ function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => v
             <label className="block text-xs text-slate-400 mb-1">Membresia</label>
             {currentExpiry && (
               <p className={`text-xs mb-2 ${isExpired ? 'text-danger' : 'text-success'}`}>
-                Actual: {isExpired ? 'Expirada' : `${daysLeft} dias restantes`} ({new Date(currentExpiry).toLocaleDateString('es-PE')})
+                Actual: {isExpired ? 'Expirada' : `${daysLeft}d ${hoursLeft}h restantes`} ({new Date(currentExpiry).toLocaleDateString('es-PE')})
               </p>
             )}
             {!currentExpiry && (
               <p className="text-xs text-slate-500 mb-2">Sin membresia (acceso ilimitado)</p>
             )}
             <div className="grid grid-cols-4 gap-2">
-              {[7, 15, 30, 60, 90, 180, 365].map(d => (
-                <button key={d} type="button" onClick={() => setForm({...form, membershipDays: d})}
+              {[
+                { h: 12, label: '12h', sub: 'Prueba' },
+                { h: 168, label: '7d', sub: '' },
+                { h: 360, label: '15d', sub: '' },
+                { h: 720, label: '30d', sub: '' },
+                { h: 1440, label: '60d', sub: '' },
+                { h: 2160, label: '90d', sub: '' },
+                { h: 4320, label: '180d', sub: '' },
+                { h: 8760, label: '365d', sub: '' },
+              ].map(o => (
+                <button key={o.h} type="button" onClick={() => setForm({...form, membershipHours: o.h})}
                   className={`py-1.5 text-xs rounded-lg border transition-colors ${
-                    form.membershipDays === d ? 'border-tactical-blue bg-tactical-blue/20 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+                    form.membershipHours === o.h ? 'border-tactical-blue bg-tactical-blue/20 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
                   }`}>
-                  {d}d
+                  {o.label}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-slate-600 mt-1">Sin seleccion = mantener actual</p>
+            <p className="text-xs text-slate-600 mt-1">12h = periodo de prueba. Sin seleccion = mantener actual</p>
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors">Cancelar</button>
