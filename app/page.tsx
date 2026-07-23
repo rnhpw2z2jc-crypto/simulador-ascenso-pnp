@@ -1448,7 +1448,7 @@ function ResultsPage({ result, onBack }: { result: ExamResult; onBack: () => voi
             className="px-4 py-2 bg-navy-800 hover:bg-navy-700 text-white rounded-lg flex items-center gap-2 transition-colors"
           >
             <HomeIcon className="w-4 h-4" />
-            Dashboard
+            Inicio
           </button>
         </div>
       </header>
@@ -1599,7 +1599,7 @@ function ResultsPage({ result, onBack }: { result: ExamResult; onBack: () => voi
             className="flex-1 py-3 bg-navy-800 hover:bg-navy-700 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
           >
             <HomeIcon className="w-5 h-5" />
-            Volver al Dashboard
+            Volver al Inicio
           </button>
         </div>
       </div>
