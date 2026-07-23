@@ -241,8 +241,9 @@ function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
 
         const currentDeviceId = await getDeviceId();
         const { platform, browser } = getDeviceInfo();
+        const isAdmin = found.role === 'admin';
 
-        if (found.deviceLocked && found.deviceId && found.deviceId !== currentDeviceId) {
+        if (!isAdmin && found.deviceLocked && found.deviceId && found.deviceId !== currentDeviceId) {
           await logAccessAttempt({
             userId: found.id,
             username: found.username,
@@ -257,7 +258,18 @@ function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
           return;
         }
 
-        if (!found.deviceLocked || !found.deviceId) {
+        if (isAdmin) {
+          await logAccessAttempt({
+            userId: found.id,
+            username: found.username,
+            deviceId: currentDeviceId,
+            platform,
+            browser,
+            status: 'allowed',
+            reason: 'Admin - acceso libre',
+          });
+          onLogin(found);
+        } else if (!found.deviceLocked || !found.deviceId) {
           const updatedUser = { ...found, deviceId: currentDeviceId, deviceLocked: true };
           await updateUser(updatedUser);
           await logAccessAttempt({
