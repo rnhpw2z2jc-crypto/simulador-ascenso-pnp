@@ -65,3 +65,20 @@ export async function seedDefaultAdmin(): Promise<void> {
     });
   }
 }
+
+export async function migrateDeviceFields(): Promise<void> {
+  try {
+    const all = await getAllUsers();
+    for (const u of all) {
+      const needsUpdate = u.deviceId === undefined || u.deviceLocked === undefined;
+      if (needsUpdate) {
+        await updateDoc(doc(db, COLLECTION, u.id), {
+          deviceId: u.deviceId ?? null,
+          deviceLocked: u.deviceLocked ?? false,
+        });
+      }
+    }
+  } catch {
+    // silent fail on migration
+  }
+}

@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { questions, categories, Question, categoryNames, getCategoryKey, getCategoryDisplayName } from '../data/questions';
 import { usePWA } from './usePWA';
-import { getUserByUsername, createUser, getAllUsers, updateUser, deleteUser, seedDefaultAdmin } from '../lib/users';
+import { getUserByUsername, createUser, getAllUsers, updateUser, deleteUser, seedDefaultAdmin, migrateDeviceFields } from '../lib/users';
 import type { UserData } from '../lib/users';
 import { checkRateLimit, sanitizeUserInput, validateUsername, validatePassword, validateEmail } from '../lib/security';
 import { getDeviceId, getDeviceInfo } from '../lib/device';
@@ -74,6 +74,7 @@ export default function Home() {
   // Check for existing session and seed admin
   useEffect(() => {
     seedDefaultAdmin().catch(() => {});
+    migrateDeviceFields().catch(() => {});
     const savedUser = localStorage.getItem('simulador_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
