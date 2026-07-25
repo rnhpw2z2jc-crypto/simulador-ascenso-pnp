@@ -18,6 +18,8 @@ import { checkRateLimit, sanitizeUserInput, validateUsername, validatePassword, 
 import { getDeviceId, getDeviceInfo } from '../lib/device';
 import { logAccessAttempt, getAccessLogs } from '../lib/accessLog';
 import type { AccessLogEntry } from '../lib/accessLog';
+import { saveExamStat, getExamStats } from '../lib/examStats';
+import type { ExamStatEntry } from '../lib/examStats';
 
 // ============== TYPES ==============
 interface User {
@@ -136,13 +138,23 @@ export default function Home() {
     const history = JSON.parse(localStorage.getItem('simulador_history') || '[]');
     history.push(result);
     localStorage.setItem('simulador_history', JSON.stringify(history));
-    // Save failed question IDs for reinforcement
+    // Save failed question IDs for reinforcement (localStorage)
     const failedIds: number[] = result.questions
       .filter((q, i) => result.answers[i] !== q.correctAnswer)
       .map(q => q.id);
     const existingFailed: number[] = JSON.parse(localStorage.getItem('simulador_failed_ids') || '[]');
     const mergedFailed = Array.from(new Set([...existingFailed, ...failedIds]));
     localStorage.setItem('simulador_failed_ids', JSON.stringify(mergedFailed));
+    // Save to Firestore for admin stats (fire-and-forget, lightweight)
+    if (user) {
+      saveExamStat({
+        userId: user.id,
+        username: user.username,
+        totalQuestions: result.totalQuestions,
+        correctAnswers: result.correctAnswers,
+        failedQuestionIds: failedIds,
+      }).catch(() => {});
+    }
     setCurrentPage('results');
   };
 
@@ -1961,9 +1973,11 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
   const [editUser, setEditUser] = useState<User | null>(null);
   const [search, setSearch] = useState('');
   const [msg, setMsg] = useState('');
-  const [tab, setTab] = useState<'users' | 'logs'>('users');
+  const [tab, setTab] = useState<'users' | 'logs' | 'stats'>('users');
   const [logs, setLogs] = useState<AccessLogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [stats, setStats] = useState<ExamStatEntry[]>([]);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -1988,6 +2002,17 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
       console.error('Error loading logs');
     }
     setLogsLoading(false);
+  };
+
+  const loadStats = async () => {
+    setStatsLoading(true);
+    try {
+      const entries = await getExamStats(500);
+      setStats(entries);
+    } catch {
+      console.error('Error loading stats');
+    }
+    setStatsLoading(false);
   };
 
   const handleAddUser = async (u: User) => {
@@ -2139,6 +2164,10 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'logs' ? 'bg-tactical-blue/20 text-tactical-blue-light' : 'bg-navy-800 text-slate-400 hover:bg-navy-700'}`}>
             <FileText className="w-4 h-4 inline mr-1" /> Registro de Accesos
           </button>
+          <button onClick={() => { setTab('stats'); loadStats(); }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'stats' ? 'bg-tactical-blue/20 text-tactical-blue-light' : 'bg-navy-800 text-slate-400 hover:bg-navy-700'}`}>
+            <Target className="w-4 h-4 inline mr-1" /> Estadisticas
+          </button>
         </div>
 
         {tab === 'users' && (<>
@@ -2282,6 +2311,143 @@ function AdminPage({ currentUser, onBack }: { currentUser: User; onBack: () => v
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {tab === 'stats' && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-slate-300">Estadisticas de examenes</h3>
+              <button onClick={loadStats} className="px-3 py-1.5 bg-navy-700 hover:bg-navy-600 text-xs text-white rounded-lg transition-colors">
+                Actualizar
+              </button>
+            </div>
+            {statsLoading ? (
+              <div className="glass rounded-xl p-8 text-center">
+                <Loader2 className="w-6 h-6 text-tactical-blue-light animate-spin mx-auto mb-2" />
+                <p className="text-slate-400 text-sm">Cargando estadisticas...</p>
+              </div>
+            ) : stats.length === 0 ? (
+              <div className="glass rounded-xl p-8 text-center">
+                <Target className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                <p className="text-slate-400">Sin examenes registrados aun</p>
+                <p className="text-xs text-slate-600 mt-1">Los examenes aparecen aqui cuando los usuarios rindan</p>
+              </div>
+            ) : (
+              <>
+                {/* Global Stats Summary */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                  <div className="glass rounded-xl p-4">
+                    <p className="text-xs text-slate-400">Total Examenes</p>
+                    <p className="text-2xl font-bold text-white">{stats.length}</p>
+                  </div>
+                  <div className="glass rounded-xl p-4">
+                    <p className="text-xs text-slate-400">Promedio General</p>
+                    <p className="text-2xl font-bold text-white">
+                      {Math.round(stats.reduce((s, e) => s + (e.correctAnswers / e.totalQuestions * 100), 0) / stats.length)}%
+                    </p>
+                  </div>
+                  <div className="glass rounded-xl p-4">
+                    <p className="text-xs text-slate-400">Usuarios Activos</p>
+                    <p className="text-2xl font-bold text-white">
+                      {new Set(stats.map(s => s.userId)).size}
+                    </p>
+                  </div>
+                  <div className="glass rounded-xl p-4">
+                    <p className="text-xs text-slate-400">Total Preguntas Falladas</p>
+                    <p className="text-2xl font-bold text-danger">
+                      {stats.reduce((s, e) => s + e.failedQuestionIds.length, 0)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Most Failed Questions */}
+                {(() => {
+                  const failCount: Record<number, number> = {};
+                  stats.forEach(e => e.failedQuestionIds.forEach(id => { failCount[id] = (failCount[id] || 0) + 1; }));
+                  const sorted = Object.entries(failCount)
+                    .map(([id, count]) => ({ id: Number(id), count }))
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 20);
+                  if (sorted.length === 0) return null;
+                  const maxCount = sorted[0].count;
+                  return (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+                        <Target className="w-4 h-4 text-danger" />
+                        Preguntas Mas Falladas (Top 20)
+                      </h4>
+                      <div className="space-y-2">
+                        {sorted.map((item, idx) => {
+                          const q = questions.find(qq => qq.id === item.id);
+                          return (
+                            <div key={item.id} className="glass rounded-lg p-3 border-l-4 border-l-danger">
+                              <div className="flex items-start gap-3">
+                                <span className="text-xs font-bold text-danger mt-0.5">#{idx + 1}</span>
+                                <div className="flex-1">
+                                  <p className="text-sm text-white line-clamp-2">{q ? q.question : `Pregunta ID ${item.id}`}</p>
+                                  <div className="flex items-center gap-3 mt-1">
+                                    <div className="flex-1 bg-navy-800 rounded-full h-2 overflow-hidden">
+                                      <div className="bg-danger h-full rounded-full" style={{ width: `${(item.count / maxCount) * 100}%` }} />
+                                    </div>
+                                    <span className="text-xs text-danger font-medium">{item.count} vez{item.count !== 1 ? 'es' : ''}</span>
+                                    {q && <span className="text-xs text-slate-500">{getCategoryDisplayName(getCategoryKey(q.category))}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Per User Stats */}
+                <div>
+                  <h4 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-tactical-blue-light" />
+                    Rendimiento por Usuario
+                  </h4>
+                  <div className="space-y-2">
+                    {(() => {
+                      const userStats: Record<string, { username: string; exams: number; totalCorrect: number; totalQ: number; totalFailed: number[] }> = {};
+                      stats.forEach(e => {
+                        if (!userStats[e.userId]) userStats[e.userId] = { username: e.username, exams: 0, totalCorrect: 0, totalQ: 0, totalFailed: [] };
+                        userStats[e.userId].exams++;
+                        userStats[e.userId].totalCorrect += e.correctAnswers;
+                        userStats[e.userId].totalQ += e.totalQuestions;
+                        userStats[e.userId].totalFailed.push(...e.failedQuestionIds);
+                      });
+                      return Object.entries(userStats)
+                        .map(([userId, s]) => ({
+                          userId,
+                          ...s,
+                          avg: Math.round((s.totalCorrect / s.totalQ) * 100),
+                          uniqueFailed: new Set(s.totalFailed).size,
+                        }))
+                        .sort((a, b) => b.exams - a.exams);
+                    })().map(us => (
+                      <div key={us.userId} className="glass rounded-lg p-3 border-l-4 border-l-tactical-blue">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-white">{us.username}</span>
+                            <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                              <span>{us.exams} examen{us.exams !== 1 ? 'es' : ''}</span>
+                              <span>Promedio: <span className={`font-medium ${us.avg >= 60 ? 'text-success' : 'text-danger'}`}>{us.avg}%</span></span>
+                              <span>Preguntas unicas falladas: <span className="text-danger font-medium">{us.uniqueFailed}</span></span>
+                            </div>
+                          </div>
+                          <div className={`px-3 py-1 rounded-full text-xs font-medium ${us.avg >= 60 ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`}>
+                            {us.avg >= 60 ? 'APROBADO' : 'DESAPROBADO'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         )}
