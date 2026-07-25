@@ -107,6 +107,16 @@ export default function Home() {
     setCurrentPage('config');
   };
 
+  const startReinforcement = () => {
+    const failedIds: number[] = JSON.parse(localStorage.getItem('simulador_failed_ids') || '[]');
+    if (failedIds.length === 0) return false;
+    const failedQuestions = questions.filter(q => failedIds.includes(q.id));
+    if (failedQuestions.length === 0) return false;
+    const timeLimit = Math.ceil(failedQuestions.length * 1.5) * 60;
+    beginExam(failedQuestions, timeLimit);
+    return true;
+  };
+
   const beginExam = (questions: Question[], timeLimit: number) => {
     setExamQuestions(questions);
     setExamState({
@@ -126,6 +136,13 @@ export default function Home() {
     const history = JSON.parse(localStorage.getItem('simulador_history') || '[]');
     history.push(result);
     localStorage.setItem('simulador_history', JSON.stringify(history));
+    // Save failed question IDs for reinforcement
+    const failedIds: number[] = result.questions
+      .filter((q, i) => result.answers[i] !== q.correctAnswer)
+      .map(q => q.id);
+    const existingFailed: number[] = JSON.parse(localStorage.getItem('simulador_failed_ids') || '[]');
+    const mergedFailed = Array.from(new Set([...existingFailed, ...failedIds]));
+    localStorage.setItem('simulador_failed_ids', JSON.stringify(mergedFailed));
     setCurrentPage('results');
   };
 
@@ -150,6 +167,7 @@ export default function Home() {
             key="dashboard"
             user={user} 
             onStartExam={startExam}
+            onStartReinforcement={startReinforcement}
             onViewHistory={() => setCurrentPage('history')}
             onLogout={handleLogout}
             onGoAdmin={() => setCurrentPage('admin')}
@@ -182,6 +200,7 @@ export default function Home() {
             key="results"
             result={currentResult}
             onBack={() => setCurrentPage('dashboard')}
+            onStartReinforcement={startReinforcement}
           />
         )}
         {currentPage === 'history' && (
@@ -619,9 +638,10 @@ function RegisterPage({ onRegister, onBack }: { onRegister: (user: User) => void
 }
 
 // ============== DASHBOARD PAGE ==============
-function DashboardPage({ user, onStartExam, onViewHistory, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate }: {
+function DashboardPage({ user, onStartExam, onStartReinforcement, onViewHistory, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate }: {
   user: User;
   onStartExam: (config: ExamConfig) => void;
+  onStartReinforcement: () => boolean;
   onViewHistory: () => void;
   onLogout: () => void;
   onGoAdmin: () => void;
@@ -633,6 +653,12 @@ function DashboardPage({ user, onStartExam, onViewHistory, onLogout, onGoAdmin, 
 }) {
   const [selectedQuestions, setSelectedQuestions] = useState(50);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['all']);
+  const [failedCount, setFailedCount] = useState(0);
+
+  useEffect(() => {
+    const failedIds: number[] = JSON.parse(localStorage.getItem('simulador_failed_ids') || '[]');
+    setFailedCount(failedIds.length);
+  }, []);
 
   const history = JSON.parse(localStorage.getItem('simulador_history') || '[]');
   const totalExams = history.length;
@@ -990,6 +1016,33 @@ function DashboardPage({ user, onStartExam, onViewHistory, onLogout, onGoAdmin, 
             Ver Historial
           </button>
         </motion.div>
+
+        {/* Reforzamiento Tactico */}
+        {failedCount > 0 && (
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.32 }}
+            className="mb-8"
+          >
+            <button
+              onClick={() => {
+                if (!onStartReinforcement()) {
+                  localStorage.removeItem('simulador_failed_ids');
+                  setFailedCount(0);
+                }
+              }}
+              className="w-full py-4 bg-gradient-to-r from-warning/20 to-gold/20 hover:from-warning/30 hover:to-gold/30 border border-warning/50 text-white font-bold text-lg rounded-xl transition-all duration-300 flex items-center justify-center gap-3"
+            >
+              <Brain className="w-6 h-6 text-gold" />
+              REFORZAMIENTO TACTICO 💪🧠
+              <span className="px-3 py-1 bg-danger/30 text-danger text-sm font-bold rounded-full">{failedCount}</span>
+            </button>
+            <p className="text-xs text-slate-500 text-center mt-2">
+              Repasa las {failedCount} pregunta{failedCount !== 1 ? 's' : ''} que fallaste en examenes anteriores
+            </p>
+          </motion.div>
+        )}
 
         {/* Simulacro Completo por Tema */}
         <motion.div
@@ -1516,13 +1569,33 @@ function ExamPage({ questions: examQuestions, state, setState, onFinish }: {
 }
 
 // ============== RESULTS PAGE ==============
-function ResultsPage({ result, onBack }: { result: ExamResult; onBack: () => void }) {
+function ResultsPage({ result, onBack, onStartReinforcement }: { result: ExamResult; onBack: () => void; onStartReinforcement: () => boolean }) {
   const [filter, setFilter] = useState<'all' | 'correct' | 'incorrect'>('all');
   
   const percentage = Math.round((result.correctAnswers / result.totalQuestions) * 100);
   const passed = percentage >= 60;
   const timeMinutes = Math.floor(result.timeUsed / 60);
   const timeSeconds = result.timeUsed % 60;
+
+  const passedMessages = [
+    '¡Excelente resultado! 🏆 Mantén el ritmo de estudio y no te confíes. ¡El ascenso te espera! 👮‍♂️⭐🎖️',
+    '¡Aprobado con nota! 🎯 Tu disciplina da frutos. ¡Sigue así y alcanzarás la meta! 💪🔥',
+    '¡Así se hace, soldado! 🛡️ Tu preparación es impecable. ¡El camino al ascenso está abierto! 🏅✨',
+    '¡Dominio total! 🧠📚 No hay quien te detenga. ¡Mantén esa consistencia! 🚀👮‍♂️',
+    '¡Gran desempeño! 🌟 Cada hora de estudio cuenta. ¡El mérito es tuyo! 🎖️💪',
+  ];
+
+  const failedMessages = [
+    '¡Este solo es el comienzo! 🚀 Cada error corregido es un paso más hacia tu ascenso. 🔥 ¡A ajustar la táctica y volver a intentar! 🛡️⚡',
+    '¡No te rindas, guerrero! 💪 Los retos forjan el carácter. Analiza tus errores y vuelve más fuerte. 🔥👮‍♂️',
+    '¡Ánimo, que el camino al ascenso es de perseverantes! 📚 Refuerza tus puntos débiles y lo lograrás. 🛡️✨',
+    '¡El fracaso es temporal, la deserción es permanente! ⚡ Estudia, repite y conquista. 🏅💪',
+    '¡Los mejores policias caen y se levantan! 🥋 Refuerza lo que fallaste y vuelve por tu ascenso. 🚀⭐',
+  ];
+
+  const motivationalMessage = passed
+    ? passedMessages[Math.floor(Math.random() * passedMessages.length)]
+    : failedMessages[Math.floor(Math.random() * failedMessages.length)];
 
   const filteredQuestions = result.questions.filter((q, i) => {
     const isCorrect = result.answers[i] === q.correctAnswer;
@@ -1604,6 +1677,17 @@ function ResultsPage({ result, onBack }: { result: ExamResult; onBack: () => voi
                   <p className="text-xs text-slate-400">Tiempo</p>
                 </div>
               </div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className={`mt-4 p-3 rounded-xl text-sm text-center md:text-left ${
+                  passed ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
+                }`}
+              >
+                {motivationalMessage}
+              </motion.div>
             </div>
           </div>
         </motion.div>
@@ -1697,7 +1781,16 @@ function ResultsPage({ result, onBack }: { result: ExamResult; onBack: () => voi
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-4 mt-6">
+        <div className="flex flex-col sm:flex-row gap-4 mt-6">
+          {!passed && result.totalQuestions - result.correctAnswers > 0 && (
+            <button
+              onClick={onStartReinforcement}
+              className="flex-1 py-3 bg-gradient-to-r from-warning/20 to-gold/20 hover:from-warning/30 hover:to-gold/30 border border-warning/50 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              <Brain className="w-5 h-5 text-gold" />
+              REFORZAMIENTO TACTICO 💪🧠
+            </button>
+          )}
           <button
             onClick={onBack}
             className="flex-1 py-3 bg-navy-800 hover:bg-navy-700 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
