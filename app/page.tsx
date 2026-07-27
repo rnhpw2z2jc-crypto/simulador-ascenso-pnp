@@ -27,7 +27,7 @@ export default function Home() {
   const [currentResult, setCurrentResult] = useState<ExamResult | null>(null);
   const [examQuestions, setExamQuestions] = useState<Question[]>([]);
   const { isInstallable, install, hasUpdate, applyUpdate } = usePWA();
-  const { questions, loading: questionsLoading, seeding, seedProgress } = useQuestions();
+  const { questions, loading: questionsLoading } = useQuestions();
 
   useEffect(() => {
     seedDefaultAdmin().catch(() => {});
@@ -115,23 +115,10 @@ export default function Home() {
           <div className="w-20 h-20 rounded-full bg-tactical-blue/20 flex items-center justify-center mx-auto mb-6">
             <Shield className="w-10 h-10 text-tactical-blue-light" />
           </div>
-          {seeding ? (
-            <>
-              <p className="text-white font-semibold mb-2">Preparando banco de preguntas...</p>
-              <p className="text-slate-400 text-sm">{seedProgress.current} / {seedProgress.total}</p>
-              <div className="w-64 h-2 bg-navy-800 rounded-full mt-3 mx-auto overflow-hidden">
-                <div 
-                  className="h-full bg-tactical-blue rounded-full transition-all duration-300"
-                  style={{ width: `${seedProgress.total > 0 ? (seedProgress.current / seedProgress.total) * 100 : 0}%` }}
-                />
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center gap-2 text-slate-400">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Cargando...</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 text-slate-400">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Cargando banco de preguntas...</span>
+          </div>
         </motion.div>
       </div>
     );
