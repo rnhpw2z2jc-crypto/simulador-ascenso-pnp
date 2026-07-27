@@ -18,9 +18,10 @@ import ResultsPage from '../components/ResultsPage';
 import HistoryPage from '../components/HistoryPage';
 import AdminPage from '../components/AdminPage';
 import ProfilePage from '../components/ProfilePage';
+import AnalyticsPage from '../components/AnalyticsPage';
 
 export default function Home() {
-  const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'dashboard' | 'config' | 'exam' | 'results' | 'history' | 'admin' | 'profile'>('login');
+  const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'dashboard' | 'config' | 'exam' | 'results' | 'history' | 'admin' | 'profile' | 'analytics'>('login');
   const [user, setUser] = useState<User | null>(null);
   const [examConfig, setExamConfig] = useState<ExamConfig | null>(null);
   const [examState, setExamState] = useState<ExamState | null>(null);
@@ -147,6 +148,7 @@ export default function Home() {
             onStartExam={startExam}
             onStartReinforcement={startReinforcement}
             onViewHistory={() => setCurrentPage('history')}
+            onGoAnalytics={() => setCurrentPage('analytics')}
             onLogout={handleLogout}
             onGoAdmin={() => setCurrentPage('admin')}
             onGoProfile={() => setCurrentPage('profile')}
@@ -185,6 +187,13 @@ export default function Home() {
         {currentPage === 'history' && (
           <HistoryPage 
             key="history"
+            onBack={() => setCurrentPage('dashboard')}
+          />
+        )}
+        {currentPage === 'analytics' && (
+          <AnalyticsPage 
+            key="analytics"
+            questions={questions}
             onBack={() => setCurrentPage('dashboard')}
           />
         )}

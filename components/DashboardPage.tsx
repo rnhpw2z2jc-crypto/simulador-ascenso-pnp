@@ -5,17 +5,18 @@ import { motion } from 'framer-motion';
 import { 
   Shield, Settings, User, LogOut, FileText, Target, Trophy, Clock, 
   Hash, BookMarked, Zap, BookOpen, Award, Check, Play, ArrowRight, 
-  BarChart3, Brain, Download, AlertTriangle 
+  BarChart3, Brain, Download, AlertTriangle, TrendingUp 
 } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
 import type { User as UserType, ExamConfig, ExamResult, Question } from './types';
 
-export default function DashboardPage({ user, questions, onStartExam, onStartReinforcement, onViewHistory, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate }: {
+export default function DashboardPage({ user, questions, onStartExam, onStartReinforcement, onViewHistory, onGoAnalytics, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate }: {
   user: UserType;
   questions: Question[];
   onStartExam: (config: ExamConfig) => void;
   onStartReinforcement: () => boolean;
   onViewHistory: () => void;
+  onGoAnalytics: () => void;
   onLogout: () => void;
   onGoAdmin: () => void;
   onGoProfile: () => void;
@@ -317,6 +318,11 @@ export default function DashboardPage({ user, questions, onStartExam, onStartRei
             className="px-8 py-4 bg-navy-800 hover:bg-navy-700 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2">
             <BarChart3 className="w-5 h-5" />
             Ver Historial
+          </button>
+          <button onClick={onGoAnalytics}
+            className="px-8 py-4 bg-navy-800 hover:bg-navy-700 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            Analytics
           </button>
         </motion.div>
 
