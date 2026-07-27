@@ -1,0 +1,509 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Settings, Users, FileText, Target, Search, Home as HomeIcon, 
+  Loader2, User 
+} from 'lucide-react';
+import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
+import { seedDefaultAdmin, getAllUsers, createUser, updateUser, deleteUser } from '../lib/users';
+import { getAccessLogs } from '../lib/accessLog';
+import type { AccessLogEntry } from '../lib/accessLog';
+import { getExamStats } from '../lib/examStats';
+import type { ExamStatEntry } from '../lib/examStats';
+import type { User as UserType, Question } from './types';
+import AddUserModal from './AddUserModal';
+import EditUserModal from './EditUserModal';
+
+export default function AdminPage({ currentUser, questions, onBack }: { currentUser: UserType; questions: Question[]; onBack: () => void }) {
+  const [users, setUsers] = useState<UserType[]>([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [editUser, setEditUser] = useState<UserType | null>(null);
+  const [search, setSearch] = useState('');
+  const [msg, setMsg] = useState('');
+  const [tab, setTab] = useState<'users' | 'logs' | 'stats'>('users');
+  const [logs, setLogs] = useState<AccessLogEntry[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [stats, setStats] = useState<ExamStatEntry[]>([]);
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      await seedDefaultAdmin();
+      const all = await getAllUsers();
+      setUsers(all);
+    } catch {
+      console.error('Error loading users');
+    }
+  };
+
+  const loadLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const entries = await getAccessLogs(200);
+      setLogs(entries);
+    } catch {
+      console.error('Error loading logs');
+    }
+    setLogsLoading(false);
+  };
+
+  const loadStats = async () => {
+    setStatsLoading(true);
+    try {
+      const entries = await getExamStats(500);
+      setStats(entries);
+    } catch {
+      console.error('Error loading stats');
+    }
+    setStatsLoading(false);
+  };
+
+  const handleAddUser = async (u: UserType) => {
+    try {
+      await createUser(u);
+      setUsers([...users, u]);
+      setShowAdd(false);
+      setMsg('Usuario creado exitosamente');
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Error al crear usuario');
+      setTimeout(() => setMsg(''), 3000);
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    if (!confirm('¿Eliminar este usuario?')) return;
+    try {
+      await deleteUser(id);
+      setUsers(users.filter(u => u.id !== id));
+      setMsg('Usuario eliminado');
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Error al eliminar');
+      setTimeout(() => setMsg(''), 3000);
+    }
+  };
+
+  const handleUpdateUser = async (updated: UserType) => {
+    try {
+      await updateUser(updated);
+      setUsers(users.map(u => u.id === updated.id ? updated : u));
+      setEditUser(null);
+      setMsg('Usuario actualizado');
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Error al actualizar');
+      setTimeout(() => setMsg(''), 3000);
+    }
+  };
+
+  const handleSetMembership = async (id: string, hours: number | null) => {
+    const updated = users.map(u => {
+      if (u.id === id) {
+        const expiry = hours !== null
+          ? new Date(Date.now() + hours * 3600000).toISOString()
+          : null;
+        return { ...u, membershipExpiry: expiry, status: 'active' as const };
+      }
+      return u;
+    });
+    try {
+      const target = updated.find(u => u.id === id);
+      if (target) await updateUser(target);
+      setUsers(updated);
+      const label = hours !== null ? (hours < 24 ? `${hours}h` : `${hours / 24} dias`) : 'removida';
+      setMsg(`Membresia ${label}`);
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Error al actualizar membresia');
+      setTimeout(() => setMsg(''), 3000);
+    }
+  };
+
+  const handleToggleStatus = async (id: string) => {
+    const updated = users.map(u => {
+      if (u.id === id) {
+        const newStatus = u.status === 'blocked' ? 'active' : 'blocked';
+        return { ...u, status: newStatus as 'active' | 'blocked' };
+      }
+      return u;
+    });
+    try {
+      const target = updated.find(u => u.id === id);
+      if (target) await updateUser(target);
+      setUsers(updated);
+    } catch {
+      console.error('Error toggling status');
+    }
+  };
+
+  const handleUnlockDevice = async (id: string) => {
+    const target = users.find(u => u.id === id);
+    if (!target) return;
+    const updated = { ...target, deviceId: null, deviceLocked: false };
+    try {
+      await updateUser(updated);
+      setUsers(users.map(u => u.id === id ? updated : u));
+      setMsg(`Dispositivo liberado para ${target.username}. Podra ingresar desde cualquier equipo.`);
+      setTimeout(() => setMsg(''), 4000);
+    } catch {
+      setMsg('Error al liberar dispositivo');
+      setTimeout(() => setMsg(''), 3000);
+    }
+  };
+
+  const filtered = users.filter(u =>
+    u.username.toLowerCase().includes(search.toLowerCase()) ||
+    u.nombre.toLowerCase().includes(search.toLowerCase()) ||
+    u.apellido.toLowerCase().includes(search.toLowerCase()) ||
+    (u.email && u.email.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const isExpired = (u: UserType) => {
+    if (!u.membershipExpiry) return false;
+    return new Date(u.membershipExpiry) < new Date();
+  };
+
+  const daysLeft = (u: UserType) => {
+    if (!u.membershipExpiry) return null;
+    const diff = new Date(u.membershipExpiry).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / 86400000));
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen">
+      <header className="glass border-b border-navy-700 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gold/20 flex items-center justify-center">
+              <Settings className="w-6 h-6 text-gold" />
+            </div>
+            <div>
+              <h1 className="font-bold text-white">ADMINISTRACION</h1>
+              <p className="text-xs text-slate-400">{users.length} usuarios registrados</p>
+            </div>
+          </div>
+          <button onClick={onBack} className="px-4 py-2 bg-navy-800 hover:bg-navy-700 text-white rounded-lg flex items-center gap-2 transition-colors">
+            <HomeIcon className="w-4 h-4" /> Volver
+          </button>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {msg && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-success/20 border border-success/50 rounded-lg p-3 mb-4 text-success text-sm">
+            {msg}
+          </motion.div>
+        )}
+
+        <div className="flex gap-2 mb-6">
+          <button onClick={() => setTab('users')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'users' ? 'bg-tactical-blue/20 text-tactical-blue-light' : 'bg-navy-800 text-slate-400 hover:bg-navy-700'}`}>
+            <Users className="w-4 h-4 inline mr-1" /> Usuarios
+          </button>
+          <button onClick={() => { setTab('logs'); loadLogs(); }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'logs' ? 'bg-tactical-blue/20 text-tactical-blue-light' : 'bg-navy-800 text-slate-400 hover:bg-navy-700'}`}>
+            <FileText className="w-4 h-4 inline mr-1" /> Registro de Accesos
+          </button>
+          <button onClick={() => { setTab('stats'); loadStats(); }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'stats' ? 'bg-tactical-blue/20 text-tactical-blue-light' : 'bg-navy-800 text-slate-400 hover:bg-navy-700'}`}>
+            <Target className="w-4 h-4 inline mr-1" /> Estadisticas
+          </button>
+        </div>
+
+        {tab === 'users' && (<>
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:border-tactical-blue"
+              placeholder="Buscar por nombre, usuario o email..." />
+          </div>
+          <button onClick={() => setShowAdd(true)}
+            className="px-4 py-2.5 bg-tactical-blue hover:bg-tactical-blue-dark text-white font-medium rounded-lg flex items-center gap-2 transition-colors">
+            <User className="w-4 h-4" /> Nuevo Usuario
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {filtered.map(u => {
+            const expired = isExpired(u);
+            const remaining = daysLeft(u);
+            return (
+              <motion.div key={u.id} initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                className={`glass rounded-xl p-4 border-l-4 ${
+                  u.status === 'blocked' ? 'border-l-danger' : expired ? 'border-l-warning' : 'border-l-success'
+                }`}>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-medium text-white">{u.nombre} {u.apellido}</span>
+                      {u.role === 'admin' && <span className="px-2 py-0.5 bg-gold/20 text-gold text-xs rounded">ADMIN</span>}
+                      {u.status === 'blocked' && <span className="px-2 py-0.5 bg-danger/20 text-danger text-xs rounded">BLOQUEADO</span>}
+                      {expired && <span className="px-2 py-0.5 bg-warning/20 text-warning text-xs rounded">EXPIRADO</span>}
+                    </div>
+                    <div className="text-xs text-slate-400 flex flex-wrap gap-3">
+                      <span>Usuario: <span className="text-slate-300">{u.username}</span></span>
+                      <span>Email: <span className="text-slate-300">{u.email || '-'}</span></span>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      Membresia: {u.membershipExpiry ? (
+                        expired ? (
+                          <span className="text-danger">Expirada ({new Date(u.membershipExpiry).toLocaleDateString('es-PE')})</span>
+                        ) : (
+                          <span className="text-success">Activa - {remaining} dias restantes (hasta {new Date(u.membershipExpiry).toLocaleDateString('es-PE')})</span>
+                        )
+                      ) : (
+                        <span className="text-slate-400">Sin fecha (acceso ilimitado)</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      Dispositivo: {u.deviceLocked ? (
+                        <span className="text-gold">Vinculado <span className="text-slate-600">({u.deviceId?.slice(0, 12)}...)</span></span>
+                      ) : (
+                        <span className="text-slate-400">Sin vincular</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 flex-shrink-0">
+                    <button onClick={() => setEditUser(u)} className="px-3 py-1.5 bg-navy-700 hover:bg-navy-600 text-xs text-white rounded-lg transition-colors">Editar</button>
+                    <button onClick={() => handleUnlockDevice(u.id)}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                        u.deviceLocked ? 'bg-gold/20 text-gold hover:bg-gold/40' : 'bg-navy-700 text-slate-500'
+                      }`}
+                      title={u.deviceLocked ? 'Liberar dispositivo para que pueda ingresar desde otro equipo' : 'Sin dispositivo vinculado'}
+                    >
+                      {u.deviceLocked ? 'Liberar' : 'Sin vinc.'}
+                    </button>
+                    <div className="relative group">
+                      <button className="px-3 py-1.5 bg-tactical-blue/20 hover:bg-tactical-blue/40 text-xs text-tactical-blue-light rounded-lg transition-colors">Membresia</button>
+                      <div className="absolute right-0 top-full mt-1 hidden group-hover:block z-10">
+                        <div className="bg-navy-800 border border-navy-700 rounded-lg p-2 shadow-xl min-w-[140px]">
+                          {[{ h: 12, label: '12h' }, { h: 168, label: '7d' }, { h: 360, label: '15d' }, { h: 720, label: '30d' }, { h: 1440, label: '60d' }, { h: 2160, label: '90d' }, { h: 4320, label: '180d' }, { h: 8760, label: '365d' }].map(o => (
+                            <button key={o.h} onClick={() => handleSetMembership(u.id, o.h)}
+                              className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-navy-700 rounded transition-colors">
+                              {o.label}
+                            </button>
+                          ))}
+                          <hr className="border-navy-700 my-1" />
+                          <button onClick={() => handleSetMembership(u.id, null)}
+                            className="w-full text-left px-3 py-1.5 text-xs text-danger hover:bg-navy-700 rounded transition-colors">
+                            Sin limite
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <button onClick={() => handleToggleStatus(u.id)}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                        u.status === 'blocked' ? 'bg-success/20 text-success hover:bg-success/40' : 'bg-warning/20 text-warning hover:bg-warning/40'
+                      }`}>
+                      {u.status === 'blocked' ? 'Activar' : 'Bloquear'}
+                    </button>
+                    <button onClick={() => handleDeleteUser(u.id)}
+                      className="px-3 py-1.5 bg-danger/20 hover:bg-danger/40 text-xs text-danger rounded-lg transition-colors">
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+          {filtered.length === 0 && (
+            <div className="glass rounded-xl p-8 text-center">
+              <p className="text-slate-400">No se encontraron usuarios</p>
+            </div>
+          )}
+        </div>
+        </>)}
+
+        {tab === 'logs' && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-slate-300">Ultimos 200 intentos de acceso</h3>
+              <button onClick={loadLogs} className="px-3 py-1.5 bg-navy-700 hover:bg-navy-600 text-xs text-white rounded-lg transition-colors">
+                Actualizar
+              </button>
+            </div>
+            {logsLoading ? (
+              <div className="glass rounded-xl p-8 text-center">
+                <Loader2 className="w-6 h-6 text-tactical-blue-light animate-spin mx-auto mb-2" />
+                <p className="text-slate-400 text-sm">Cargando registros...</p>
+              </div>
+            ) : logs.length === 0 ? (
+              <div className="glass rounded-xl p-8 text-center">
+                <p className="text-slate-400">Sin registros de acceso</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {logs.map(log => (
+                  <div key={log.id} className={`glass rounded-lg p-3 border-l-4 ${log.status === 'allowed' ? 'border-l-success' : 'border-l-danger'}`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-medium text-white">{log.username}</span>
+                          <span className={`px-2 py-0.5 text-xs rounded ${log.status === 'allowed' ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`}>
+                            {log.status === 'allowed' ? ' Permitido' : ' Bloqueado'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500">{log.reason} | {log.platform} / {log.browser} | ID: {log.deviceId.slice(0, 16)}...</p>
+                      </div>
+                      <p className="text-xs text-slate-500">{new Date(log.timestamp).toLocaleString('es-PE')}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === 'stats' && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-slate-300">Estadisticas de examenes</h3>
+              <button onClick={loadStats} className="px-3 py-1.5 bg-navy-700 hover:bg-navy-600 text-xs text-white rounded-lg transition-colors">
+                Actualizar
+              </button>
+            </div>
+            {statsLoading ? (
+              <div className="glass rounded-xl p-8 text-center">
+                <Loader2 className="w-6 h-6 text-tactical-blue-light animate-spin mx-auto mb-2" />
+                <p className="text-slate-400 text-sm">Cargando estadisticas...</p>
+              </div>
+            ) : stats.length === 0 ? (
+              <div className="glass rounded-xl p-8 text-center">
+                <Target className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                <p className="text-slate-400">Sin examenes registrados aun</p>
+                <p className="text-xs text-slate-600 mt-1">Los examenes aparecen aqui cuando los usuarios rindan</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                  <div className="glass rounded-xl p-4">
+                    <p className="text-xs text-slate-400">Total Examenes</p>
+                    <p className="text-2xl font-bold text-white">{stats.length}</p>
+                  </div>
+                  <div className="glass rounded-xl p-4">
+                    <p className="text-xs text-slate-400">Promedio General</p>
+                    <p className="text-2xl font-bold text-white">
+                      {Math.round(stats.reduce((s, e) => s + (e.correctAnswers / e.totalQuestions * 100), 0) / stats.length)}%
+                    </p>
+                  </div>
+                  <div className="glass rounded-xl p-4">
+                    <p className="text-xs text-slate-400">Usuarios Activos</p>
+                    <p className="text-2xl font-bold text-white">
+                      {new Set(stats.map(s => s.userId)).size}
+                    </p>
+                  </div>
+                  <div className="glass rounded-xl p-4">
+                    <p className="text-xs text-slate-400">Total Preguntas Falladas</p>
+                    <p className="text-2xl font-bold text-danger">
+                      {stats.reduce((s, e) => s + e.failedQuestionIds.length, 0)}
+                    </p>
+                  </div>
+                </div>
+
+                {(() => {
+                  const failCount: Record<number, number> = {};
+                  stats.forEach(e => e.failedQuestionIds.forEach(id => { failCount[id] = (failCount[id] || 0) + 1; }));
+                  const sorted = Object.entries(failCount)
+                    .map(([id, count]) => ({ id: Number(id), count }))
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 20);
+                  if (sorted.length === 0) return null;
+                  const maxCount = sorted[0].count;
+                  return (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+                        <Target className="w-4 h-4 text-danger" />
+                        Preguntas Mas Falladas (Top 20)
+                      </h4>
+                      <div className="space-y-2">
+                        {sorted.map((item, idx) => {
+                          const q = questions.find(qq => qq.id === item.id);
+                          return (
+                            <div key={item.id} className="glass rounded-lg p-3 border-l-4 border-l-danger">
+                              <div className="flex items-start gap-3">
+                                <span className="text-xs font-bold text-danger mt-0.5">#{idx + 1}</span>
+                                <div className="flex-1">
+                                  <p className="text-sm text-white line-clamp-2">{q ? q.question : `Pregunta ID ${item.id}`}</p>
+                                  <div className="flex items-center gap-3 mt-1">
+                                    <div className="flex-1 bg-navy-800 rounded-full h-2 overflow-hidden">
+                                      <div className="bg-danger h-full rounded-full" style={{ width: `${(item.count / maxCount) * 100}%` }} />
+                                    </div>
+                                    <span className="text-xs text-danger font-medium">{item.count} vez{item.count !== 1 ? 'es' : ''}</span>
+                                    {q && <span className="text-xs text-slate-500">{getCategoryDisplayName(getCategoryKey(q.category))}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <div>
+                  <h4 className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-tactical-blue-light" />
+                    Rendimiento por Usuario
+                  </h4>
+                  <div className="space-y-2">
+                    {(() => {
+                      const userStats: Record<string, { username: string; exams: number; totalCorrect: number; totalQ: number; totalFailed: number[] }> = {};
+                      stats.forEach(e => {
+                        if (!userStats[e.userId]) userStats[e.userId] = { username: e.username, exams: 0, totalCorrect: 0, totalQ: 0, totalFailed: [] };
+                        userStats[e.userId].exams++;
+                        userStats[e.userId].totalCorrect += e.correctAnswers;
+                        userStats[e.userId].totalQ += e.totalQuestions;
+                        userStats[e.userId].totalFailed.push(...e.failedQuestionIds);
+                      });
+                      return Object.entries(userStats)
+                        .map(([userId, s]) => ({
+                          userId,
+                          ...s,
+                          avg: Math.round((s.totalCorrect / s.totalQ) * 100),
+                          uniqueFailed: new Set(s.totalFailed).size,
+                        }))
+                        .sort((a, b) => b.exams - a.exams);
+                    })().map(us => (
+                      <div key={us.userId} className="glass rounded-lg p-3 border-l-4 border-l-tactical-blue">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-white">{us.username}</span>
+                            <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                              <span>{us.exams} examen{us.exams !== 1 ? 'es' : ''}</span>
+                              <span>Promedio: <span className={`font-medium ${us.avg >= 60 ? 'text-success' : 'text-danger'}`}>{us.avg}%</span></span>
+                              <span>Preguntas unicas falladas: <span className="text-danger font-medium">{us.uniqueFailed}</span></span>
+                            </div>
+                          </div>
+                          <div className={`px-3 py-1 rounded-full text-xs font-medium ${us.avg >= 60 ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`}>
+                            {us.avg >= 60 ? 'APROBADO' : 'DESAPROBADO'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {showAdd && <AddUserModal onClose={() => setShowAdd(false)} onAdd={handleAddUser} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {editUser && <EditUserModal user={editUser} onClose={() => setEditUser(null)} onSave={handleUpdateUser} />}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
