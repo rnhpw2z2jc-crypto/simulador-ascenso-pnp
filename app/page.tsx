@@ -67,6 +67,7 @@ export default function Home() {
     if (failedIds.length === 0) return false;
     const failedQuestions = questions.filter(q => failedIds.includes(q.id));
     if (failedQuestions.length === 0) return false;
+    localStorage.removeItem('simulador_failed_ids');
     const timeLimit = Math.ceil(failedQuestions.length * 1.5) * 60;
     beginExam(failedQuestions, timeLimit);
     return true;
@@ -93,9 +94,7 @@ export default function Home() {
     const failedIds: number[] = result.questions
       .filter((q, i) => result.answers[i] !== q.correctAnswer)
       .map(q => q.id);
-    const existingFailed: number[] = JSON.parse(localStorage.getItem('simulador_failed_ids') || '[]');
-    const mergedFailed = Array.from(new Set([...existingFailed, ...failedIds]));
-    localStorage.setItem('simulador_failed_ids', JSON.stringify(mergedFailed));
+    localStorage.setItem('simulador_failed_ids', JSON.stringify(failedIds));
     if (user) {
       saveExamStat({
         userId: user.id,
