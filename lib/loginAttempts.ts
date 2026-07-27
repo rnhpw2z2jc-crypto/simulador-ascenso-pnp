@@ -1,30 +1,43 @@
-import { db } from './firebase';
-import { 
-  collection, addDoc, getDocs, query, where, 
-  orderBy, limit as firestoreLimit, deleteDoc, doc 
-} from 'firebase/firestore';
 import { getUserByUsername, updateUser } from './users';
 
-const COLLECTION = 'loginAttempts';
 const MAX_ATTEMPTS = 3;
-const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
+const LOCKOUT_DURATION = 15 * 60 * 1000;
+const STORAGE_KEY = 'simulador_login_attempts';
 
-interface FailedAttempt {
-  id: string;
+interface AttemptRecord {
   username: string;
-  timestamp: string;
+  timestamp: number;
+}
+
+function getAttempts(): AttemptRecord[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveAttempts(attempts: AttemptRecord[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(attempts));
+}
+
+function getRecentAttempts(username: string): AttemptRecord[] {
+  const cutoff = Date.now() - LOCKOUT_DURATION;
+  return getAttempts().filter(a => a.username === username.toLowerCase() && a.timestamp > cutoff);
 }
 
 export async function recordFailedAttempt(username: string): Promise<{ locked: boolean; attemptsLeft: number }> {
-  await addDoc(collection(db, COLLECTION), {
-    username: username.toLowerCase(),
-    timestamp: new Date().toISOString(),
-  });
+  const attempts = getAttempts();
+  attempts.push({ username: username.toLowerCase(), timestamp: Date.now() });
+  saveAttempts(attempts);
 
-  const attempts = await getFailedAttempts(username);
-  const attemptsLeft = MAX_ATTEMPTS - attempts.length;
+  const recent = getRecentAttempts(username);
+  const attemptsLeft = MAX_ATTEMPTS - recent.length;
 
-  if (attempts.length >= MAX_ATTEMPTS) {
+  if (recent.length >= MAX_ATTEMPTS) {
     const user = await getUserByUsername(username);
     if (user && user.status !== 'blocked') {
       await updateUser({ ...user, status: 'blocked' });
@@ -35,49 +48,38 @@ export async function recordFailedAttempt(username: string): Promise<{ locked: b
   return { locked: false, attemptsLeft };
 }
 
-export async function getFailedAttempts(username: string): Promise<FailedAttempt[]> {
-  const cutoff = new Date(Date.now() - LOCKOUT_DURATION).toISOString();
-  const q = query(
-    collection(db, COLLECTION),
-    where('username', '==', username.toLowerCase()),
-    orderBy('timestamp', 'desc'),
-    firestoreLimit(10)
-  );
-  const snap = await getDocs(q);
-  return snap.docs
-    .map(d => ({ id: d.id, ...d.data() } as FailedAttempt))
-    .filter(a => a.timestamp > cutoff);
-}
-
 export async function clearFailedAttempts(username: string): Promise<void> {
-  const attempts = await getFailedAttempts(username);
-  for (const attempt of attempts) {
-    await deleteDoc(doc(db, COLLECTION, attempt.id));
-  }
+  const cutoff = Date.now() - LOCKOUT_DURATION;
+  const remaining = getAttempts().filter(a => !(a.username === username.toLowerCase() && a.timestamp > cutoff));
+  saveAttempts(remaining);
 }
 
 export async function isLockedOut(username: string): Promise<{ locked: boolean; attemptsLeft: number; unlockTime?: Date }> {
-  const user = await getUserByUsername(username);
-  
-  if (user?.status === 'blocked') {
-    const attempts = await getFailedAttempts(username);
-    if (attempts.length === 0) {
-      await updateUser({ ...user, status: 'active' });
-      return { locked: false, attemptsLeft: MAX_ATTEMPTS };
-    }
-    const oldestAttempt = attempts[attempts.length - 1];
-    const unlockTime = new Date(new Date(oldestAttempt.timestamp).getTime() + LOCKOUT_DURATION);
+  try {
+    const user = await getUserByUsername(username);
     
-    if (new Date() > unlockTime) {
-      await updateUser({ ...user, status: 'active' });
-      await clearFailedAttempts(username);
-      return { locked: false, attemptsLeft: MAX_ATTEMPTS };
+    if (user?.status === 'blocked') {
+      const recent = getRecentAttempts(username);
+      if (recent.length === 0) {
+        await updateUser({ ...user, status: 'active' });
+        return { locked: false, attemptsLeft: MAX_ATTEMPTS };
+      }
+      const oldestAttempt = recent[0];
+      const unlockTime = new Date(oldestAttempt.timestamp + LOCKOUT_DURATION);
+      
+      if (new Date() > unlockTime) {
+        await updateUser({ ...user, status: 'active' });
+        await clearFailedAttempts(username);
+        return { locked: false, attemptsLeft: MAX_ATTEMPTS };
+      }
+      
+      return { locked: true, attemptsLeft: 0, unlockTime };
     }
-    
-    return { locked: true, attemptsLeft: 0, unlockTime };
-  }
 
-  const attempts = await getFailedAttempts(username);
-  const attemptsLeft = MAX_ATTEMPTS - attempts.length;
-  return { locked: false, attemptsLeft: Math.max(0, attemptsLeft) };
+    const recent = getRecentAttempts(username);
+    const attemptsLeft = MAX_ATTEMPTS - recent.length;
+    return { locked: false, attemptsLeft: Math.max(0, attemptsLeft) };
+  } catch {
+    return { locked: false, attemptsLeft: MAX_ATTEMPTS };
+  }
 }

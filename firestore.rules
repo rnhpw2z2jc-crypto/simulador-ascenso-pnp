@@ -21,13 +21,5 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow delete, update: if false;
     }
-
-    // Intentos de login fallidos (bloqueo por brute force)
-    match /loginAttempts/{attemptId} {
-      allow read: if request.auth != null;
-      allow create: if true;
-      allow delete: if request.auth != null;
-      allow update: if false;
-    }
   }
 }
