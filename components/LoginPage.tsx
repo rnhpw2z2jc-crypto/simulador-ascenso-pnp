@@ -7,6 +7,7 @@ import { checkRateLimit, sanitizeUserInput } from '../lib/security';
 import { getUserByUsername, updateUser } from '../lib/users';
 import { getDeviceId, getDeviceInfo } from '../lib/device';
 import { logAccessAttempt } from '../lib/accessLog';
+import { isLockedOut, recordFailedAttempt, clearFailedAttempts } from '../lib/loginAttempts';
 import type { User as UserType } from './types';
 
 export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => void }) {
@@ -15,6 +16,8 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
+  const [lockoutTimer, setLockoutTimer] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,10 +30,23 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
         setLoading(false);
         return;
       }
+
+      const lockStatus = await isLockedOut(username);
+      if (lockStatus.locked) {
+        const mins = lockStatus.unlockTime 
+          ? Math.ceil((lockStatus.unlockTime.getTime() - Date.now()) / 60000) 
+          : 15;
+        setError(`Cuenta bloqueada por intentos fallidos. Intente en ${mins} minuto${mins !== 1 ? 's' : ''}.`);
+        setLoading(false);
+        return;
+      }
+
       const cleanUsername = sanitizeUserInput({ username }).username;
       const found = await getUserByUsername(cleanUsername);
       
       if (found && found.password === password) {
+        await clearFailedAttempts(cleanUsername);
+        setAttemptsLeft(null);
         if (found.status === 'blocked') {
           setError('Tu cuenta ha sido bloqueada. Contacta al administrador.');
           setLoading(false);
@@ -93,7 +109,13 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
           onLogin(found);
         }
       } else {
-        setError('Credenciales incorrectas');
+        const result = await recordFailedAttempt(cleanUsername);
+        setAttemptsLeft(result.attemptsLeft);
+        if (result.locked) {
+          setError('Cuenta bloqueada por 3 intentos fallidos. Espere 15 minutos o contacte al administrador.');
+        } else {
+          setError(`Credenciales incorrectas. ${result.attemptsLeft} intento${result.attemptsLeft !== 1 ? 's' : ''} restante${result.attemptsLeft !== 1 ? 's' : ''}.`);
+        }
       }
     } catch {
       setError('Error de conexion. Intente de nuevo.');
@@ -140,9 +162,17 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
               animate={{ opacity: 1, y: 0 }}
               className="bg-danger/20 border border-danger/50 rounded-lg p-3 mb-4 flex items-center gap-2"
             >
-              <AlertTriangle className="w-5 h-5 text-danger" />
+              <AlertTriangle className="w-5 h-5 text-danger flex-shrink-0" />
               <span className="text-sm text-danger">{error}</span>
             </motion.div>
+          )}
+
+          {attemptsLeft !== null && attemptsLeft > 0 && attemptsLeft < 3 && (
+            <div className="mb-4 flex items-center gap-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className={`h-1.5 flex-1 rounded-full ${i <= attemptsLeft ? 'bg-warning' : 'bg-danger'}`} />
+              ))}
+            </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
