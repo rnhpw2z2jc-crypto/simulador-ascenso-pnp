@@ -43,6 +43,16 @@ export async function updateUser(user: UserData): Promise<void> {
 }
 
 export async function deleteUser(userId: string): Promise<void> {
+  const examStatsSnap = await getDocs(query(collection(db, 'examStats'), where('userId', '==', userId)));
+  for (const d of examStatsSnap.docs) {
+    await deleteDoc(d.ref);
+  }
+
+  const accessLogsSnap = await getDocs(query(collection(db, 'accessLogs'), where('userId', '==', userId)));
+  for (const d of accessLogsSnap.docs) {
+    await deleteDoc(d.ref);
+  }
+
   await deleteDoc(doc(db, COLLECTION, userId));
 }
 
