@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Shield, Loader2 } from 'lucide-react';
 import { usePWA } from './usePWA';
-import { seedDefaultAdmin, migrateDeviceFields } from '../lib/users';
+import { seedDefaultAdmin, migrateDeviceFields, getUserByUsername } from '../lib/users';
 import { saveExamStat } from '../lib/examStats';
 import { useQuestions } from '../components/useQuestions';
 import type { ExamConfig, ExamState, ExamResult, User, Question } from '../components/types';
@@ -57,6 +57,22 @@ export default function Home() {
     localStorage.removeItem('simulador_user');
     setCurrentPage('login');
   };
+
+  const refreshUserData = useCallback(async (username: string) => {
+    try {
+      const fresh = await getUserByUsername(username);
+      if (fresh) {
+        if (fresh.membershipExpiry && new Date(fresh.membershipExpiry) < new Date()) {
+          fresh.status = 'expired';
+        }
+        const userData = { ...fresh, id: fresh.id };
+        setUser(userData);
+        localStorage.setItem('simulador_user', JSON.stringify(userData));
+      }
+    } catch {
+      // silencioso - si falla la consulta, usa datos en cache
+    }
+  }, []);
 
   const startExam = (config: ExamConfig) => {
     setExamConfig(config);
@@ -145,6 +161,7 @@ export default function Home() {
             key="dashboard"
             user={user} 
             questions={questions}
+            onRefreshUser={refreshUserData}
             onStartExam={startExam}
             onStartReinforcement={startReinforcement}
             onViewHistory={() => setCurrentPage('history')}

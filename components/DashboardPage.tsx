@@ -10,9 +10,10 @@ import {
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
 import type { User as UserType, ExamConfig, ExamResult, Question } from './types';
 
-export default function DashboardPage({ user, questions, onStartExam, onStartReinforcement, onViewHistory, onGoAnalytics, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate }: {
+export default function DashboardPage({ user, questions, onRefreshUser, onStartExam, onStartReinforcement, onViewHistory, onGoAnalytics, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate }: {
   user: UserType;
   questions: Question[];
+  onRefreshUser: (username: string) => Promise<void>;
   onStartExam: (config: ExamConfig) => void;
   onStartReinforcement: () => boolean;
   onViewHistory: () => void;
@@ -32,6 +33,10 @@ export default function DashboardPage({ user, questions, onStartExam, onStartRei
   useEffect(() => {
     const failedIds: number[] = JSON.parse(localStorage.getItem('simulador_failed_ids') || '[]');
     setFailedCount(failedIds.length);
+  }, []);
+
+  useEffect(() => {
+    onRefreshUser(user.username);
   }, []);
 
   const history = JSON.parse(localStorage.getItem('simulador_history') || '[]');
