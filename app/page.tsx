@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Shield, Loader2 } from 'lucide-react';
 import { usePWA } from './usePWA';
@@ -9,16 +10,32 @@ import { saveExamStat } from '../lib/examStats';
 import { useQuestions } from '../components/useQuestions';
 import type { ExamConfig, ExamState, ExamResult, User, Question } from '../components/types';
 
-import LoginPage from '../components/LoginPage';
-import RegisterPage from '../components/RegisterPage';
-import DashboardPage from '../components/DashboardPage';
-import ConfigPage from '../components/ConfigPage';
-import ExamPage from '../components/ExamPage';
-import ResultsPage from '../components/ResultsPage';
-import HistoryPage from '../components/HistoryPage';
-import AdminPage from '../components/AdminPage';
-import ProfilePage from '../components/ProfilePage';
-import AnalyticsPage from '../components/AnalyticsPage';
+const LoginPage = dynamic(() => import('../components/LoginPage'), { ssr: false, loading: () => <SplashLoader /> });
+const RegisterPage = dynamic(() => import('../components/RegisterPage'), { ssr: false });
+const DashboardPage = dynamic(() => import('../components/DashboardPage'), { ssr: false });
+const ConfigPage = dynamic(() => import('../components/ConfigPage'), { ssr: false });
+const ExamPage = dynamic(() => import('../components/ExamPage'), { ssr: false });
+const ResultsPage = dynamic(() => import('../components/ResultsPage'), { ssr: false });
+const HistoryPage = dynamic(() => import('../components/HistoryPage'), { ssr: false });
+const AdminPage = dynamic(() => import('../components/AdminPage'), { ssr: false });
+const ProfilePage = dynamic(() => import('../components/ProfilePage'), { ssr: false });
+const AnalyticsPage = dynamic(() => import('../components/AnalyticsPage'), { ssr: false });
+
+function SplashLoader() {
+  return (
+    <div className="min-h-screen bg-navy-900 flex items-center justify-center">
+      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
+        <div className="w-20 h-20 rounded-full bg-tactical-blue/20 flex items-center justify-center mx-auto mb-6">
+          <Shield className="w-10 h-10 text-tactical-blue-light" />
+        </div>
+        <div className="flex items-center gap-2 text-slate-400">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>Cargando...</span>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'dashboard' | 'config' | 'exam' | 'results' | 'history' | 'admin' | 'profile' | 'analytics'>('login');
@@ -124,7 +141,7 @@ export default function Home() {
     setCurrentPage('results');
   };
 
-  if (questionsLoading) {
+  if (questionsLoading && (currentPage === 'config' || currentPage === 'exam' || currentPage === 'dashboard')) {
     return (
       <div className="min-h-screen bg-navy-900 flex items-center justify-center">
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center">

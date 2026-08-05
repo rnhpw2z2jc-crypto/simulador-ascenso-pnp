@@ -1,4 +1,4 @@
-const CACHE_NAME = 'simulador-pnp-v2';
+const CACHE_NAME = 'simulador-pnp-v3';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
