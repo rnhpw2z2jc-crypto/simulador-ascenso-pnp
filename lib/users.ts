@@ -2,7 +2,7 @@ import { db } from './firebase';
 import {
   collection, doc, getDocs, setDoc, deleteDoc, updateDoc, query, where
 } from 'firebase/firestore';
-import { hashPassword } from './password';
+import { hashPassword, verifyPassword } from './password';
 
 export interface UserData {
   id: string;
@@ -57,10 +57,12 @@ export async function deleteUser(userId: string): Promise<void> {
   await deleteDoc(doc(db, COLLECTION, userId));
 }
 
+const ADMIN_DEFAULT_PASSWORD = 'AdminPNP2026!';
+
 export async function seedDefaultAdmin(): Promise<void> {
   const existing = await getUserByUsername('admin');
   if (!existing) {
-    const hashedPassword = await hashPassword('AdminPNP2026!');
+    const hashedPassword = await hashPassword(ADMIN_DEFAULT_PASSWORD);
     await createUser({
       id: 'admin-default',
       username: 'admin',
@@ -75,6 +77,12 @@ export async function seedDefaultAdmin(): Promise<void> {
       deviceId: null,
       deviceLocked: false,
     });
+  } else {
+    const passwordValid = await verifyPassword(ADMIN_DEFAULT_PASSWORD, existing.password);
+    if (!passwordValid) {
+      const hashedPassword = await hashPassword(ADMIN_DEFAULT_PASSWORD);
+      await updateUser({ ...existing, password: hashedPassword });
+    }
   }
 }
 
