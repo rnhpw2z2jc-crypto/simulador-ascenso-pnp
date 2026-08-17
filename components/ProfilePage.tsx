@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User, Home as HomeIcon } from 'lucide-react';
+import { hashPassword, verifyPassword } from '../lib/password';
+import { updateUser } from '../lib/users';
 import type { ExamResult } from './types';
 import type { User as UserType } from './types';
 
@@ -19,17 +21,23 @@ export default function ProfilePage({ user, onUpdate, onBack }: { user: UserType
   const avgScore = totalExams > 0 ? Math.round(history.reduce((s, r) => s + (r.score / r.totalQuestions * 100), 0) / totalExams) : 0;
   const bestScore = totalExams > 0 ? Math.max(...history.map(r => Math.round(r.score / r.totalQuestions * 100))) : 0;
 
-  const handleSaveProfile = () => {
-    onUpdate({ ...user, ...form });
+  const handleSaveProfile = async () => {
+    const updated = { ...user, ...form };
+    await updateUser(updated);
+    onUpdate(updated);
     setMsg('Perfil actualizado');
     setTimeout(() => setMsg(''), 3000);
   };
 
-  const handleChangePassword = () => {
-    if (passwordForm.current !== user.password) { setMsg('Contrasena actual incorrecta'); return; }
+  const handleChangePassword = async () => {
+    const passwordValid = await verifyPassword(passwordForm.current, user.password);
+    if (!passwordValid) { setMsg('Contrasena actual incorrecta'); return; }
     if (passwordForm.newPass.length < 6) { setMsg('Minimo 6 caracteres'); return; }
     if (passwordForm.newPass !== passwordForm.confirm) { setMsg('Las contrasenas no coinciden'); return; }
-    onUpdate({ ...user, password: passwordForm.newPass });
+    const hashedPassword = await hashPassword(passwordForm.newPass);
+    const updated = { ...user, password: hashedPassword };
+    await updateUser(updated);
+    onUpdate(updated);
     setPasswordForm({ current: '', newPass: '', confirm: '' });
     setMsg('Contrasena cambiada');
     setTimeout(() => setMsg(''), 3000);

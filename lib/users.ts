@@ -2,6 +2,7 @@ import { db } from './firebase';
 import {
   collection, doc, getDocs, setDoc, deleteDoc, updateDoc, query, where
 } from 'firebase/firestore';
+import { hashPassword } from './password';
 
 export interface UserData {
   id: string;
@@ -59,10 +60,11 @@ export async function deleteUser(userId: string): Promise<void> {
 export async function seedDefaultAdmin(): Promise<void> {
   const existing = await getUserByUsername('admin');
   if (!existing) {
+    const hashedPassword = await hashPassword('AdminPNP2026!');
     await createUser({
       id: 'admin-default',
       username: 'admin',
-      password: '123456',
+      password: hashedPassword,
       nombre: 'Administrador',
       apellido: 'General',
       email: '',

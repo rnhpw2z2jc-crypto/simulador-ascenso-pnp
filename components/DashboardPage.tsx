@@ -37,7 +37,7 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
 
   useEffect(() => {
     onRefreshUser(user.username);
-  }, []);
+  }, [user.username, onRefreshUser]);
 
   const history = JSON.parse(localStorage.getItem('simulador_history') || '[]');
   const totalExams = history.length;

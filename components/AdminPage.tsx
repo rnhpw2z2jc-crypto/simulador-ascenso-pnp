@@ -27,10 +27,18 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
   const [logsLoading, setLogsLoading] = useState(false);
   const [stats, setStats] = useState<ExamStatEntry[]>([]);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [openMembershipId, setOpenMembershipId] = useState<string | null>(null);
+  const PAGE_SIZE_MOBILE = 10;
+  const PAGE_SIZE_DESKTOP = 20;
 
   useEffect(() => {
     loadUsers();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   const loadUsers = async () => {
     try {
@@ -165,6 +173,10 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
     (u.email && u.email.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const getPageSize = () => (typeof window !== 'undefined' && window.innerWidth >= 640 ? PAGE_SIZE_DESKTOP : PAGE_SIZE_MOBILE);
+  const totalPages = Math.ceil(filtered.length / getPageSize());
+  const paginatedUsers = filtered.slice((currentPage - 1) * getPageSize(), currentPage * getPageSize());
+
   const isExpired = (u: UserType) => {
     if (!u.membershipExpiry) return false;
     return new Date(u.membershipExpiry) < new Date();
@@ -219,21 +231,27 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
         </div>
 
         {tab === 'users' && (<>
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:border-tactical-blue"
-              placeholder="Buscar por nombre, usuario o email..." />
+        <div className="sticky top-[61px] z-40 bg-[#0a0f1e] pt-3 pb-3 -mx-4 px-4 border-b border-navy-700/50">
+          <div className="flex flex-col sm:flex-row gap-3 mb-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:border-tactical-blue"
+                placeholder="Buscar por nombre, usuario o email..." />
+            </div>
+            <button onClick={() => setShowAdd(true)}
+              className="px-4 py-2.5 bg-tactical-blue hover:bg-tactical-blue-dark text-white font-medium rounded-lg flex items-center gap-2 transition-colors">
+              <User className="w-4 h-4" /> Nuevo
+            </button>
           </div>
-          <button onClick={() => setShowAdd(true)}
-            className="px-4 py-2.5 bg-tactical-blue hover:bg-tactical-blue-dark text-white font-medium rounded-lg flex items-center gap-2 transition-colors">
-            <User className="w-4 h-4" /> Nuevo Usuario
-          </button>
+          <div className="flex items-center justify-between text-xs text-slate-500">
+            <span>{filtered.length === users.length ? `${users.length} usuarios` : `${filtered.length} de ${users.length} usuarios`}</span>
+            {totalPages > 1 && <span>Pagina {currentPage} de {totalPages}</span>}
+          </div>
         </div>
 
         <div className="space-y-3">
-          {filtered.map(u => {
+          {paginatedUsers.map(u => {
             const expired = isExpired(u);
             const remaining = daysLeft(u);
             return (
@@ -282,23 +300,26 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
                     >
                       {u.deviceLocked ? 'Liberar' : 'Sin vinc.'}
                     </button>
-                    <div className="relative group">
-                      <button className="px-3 py-1.5 bg-tactical-blue/20 hover:bg-tactical-blue/40 text-xs text-tactical-blue-light rounded-lg transition-colors">Membresia</button>
-                      <div className="absolute right-0 top-full mt-1 hidden group-hover:block z-10">
-                        <div className="bg-navy-800 border border-navy-700 rounded-lg p-2 shadow-xl min-w-[140px]">
-                          {[{ h: 12, label: '12h' }, { h: 168, label: '7d' }, { h: 360, label: '15d' }, { h: 720, label: '30d' }, { h: 1440, label: '60d' }, { h: 2160, label: '90d' }, { h: 4320, label: '180d' }, { h: 8760, label: '365d' }].map(o => (
-                            <button key={o.h} onClick={() => handleSetMembership(u.id, o.h)}
-                              className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-navy-700 rounded transition-colors">
-                              {o.label}
+                    <div className="relative">
+                      <button onClick={() => setOpenMembershipId(openMembershipId === u.id ? null : u.id)}
+                        className="px-3 py-1.5 bg-tactical-blue/20 hover:bg-tactical-blue/40 text-xs text-tactical-blue-light rounded-lg transition-colors">Membresia</button>
+                      {openMembershipId === u.id && (
+                        <div className="absolute right-0 top-full mt-1 z-10">
+                          <div className="bg-navy-800 border border-navy-700 rounded-lg p-2 shadow-xl min-w-[140px]">
+                            {[{ h: 12, label: '12h' }, { h: 168, label: '7d' }, { h: 360, label: '15d' }, { h: 720, label: '30d' }, { h: 1440, label: '60d' }, { h: 2160, label: '90d' }, { h: 4320, label: '180d' }, { h: 8760, label: '365d' }].map(o => (
+                              <button key={o.h} onClick={() => { handleSetMembership(u.id, o.h); setOpenMembershipId(null); }}
+                                className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-navy-700 rounded transition-colors">
+                                {o.label}
+                              </button>
+                            ))}
+                            <hr className="border-navy-700 my-1" />
+                            <button onClick={() => { handleSetMembership(u.id, null); setOpenMembershipId(null); }}
+                              className="w-full text-left px-3 py-1.5 text-xs text-danger hover:bg-navy-700 rounded transition-colors">
+                              Sin limite
                             </button>
-                          ))}
-                          <hr className="border-navy-700 my-1" />
-                          <button onClick={() => handleSetMembership(u.id, null)}
-                            className="w-full text-left px-3 py-1.5 text-xs text-danger hover:bg-navy-700 rounded transition-colors">
-                            Sin limite
-                          </button>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                     <button onClick={() => handleToggleStatus(u.id)}
                       className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
@@ -318,6 +339,24 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
           {filtered.length === 0 && (
             <div className="glass rounded-xl p-8 text-center">
               <p className="text-slate-400">No se encontraron usuarios</p>
+            </div>
+          )}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-2 pb-4">
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                className="px-3 py-1.5 bg-navy-800 hover:bg-navy-700 text-xs text-white rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                Anterior
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button key={page} onClick={() => setCurrentPage(page)}
+                  className={`w-8 h-8 text-xs rounded-lg transition-colors ${currentPage === page ? 'bg-tactical-blue text-white' : 'bg-navy-800 text-slate-400 hover:bg-navy-700'}`}>
+                  {page}
+                </button>
+              ))}
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                className="px-3 py-1.5 bg-navy-800 hover:bg-navy-700 text-xs text-white rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                Siguiente
+              </button>
             </div>
           )}
         </div>

@@ -8,6 +8,7 @@ import { getUserByUsername, updateUser } from '../lib/users';
 import { getDeviceId, getDeviceInfo } from '../lib/device';
 import { logAccessAttempt } from '../lib/accessLog';
 import { isLockedOut, recordFailedAttempt, clearFailedAttempts } from '../lib/loginAttempts';
+import { verifyPassword, isBcryptHash, hashPassword } from '../lib/password';
 import type { User as UserType } from './types';
 
 export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => void }) {
@@ -44,9 +45,17 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
       const cleanUsername = sanitizeUserInput({ username }).username;
       const found = await getUserByUsername(cleanUsername);
       
-      if (found && found.password === password) {
+      if (found && await verifyPassword(password, found.password)) {
         await clearFailedAttempts(cleanUsername);
         setAttemptsLeft(null);
+
+        // Migración: si la contraseña no está hasheada, hashearla y guardar
+        if (!isBcryptHash(found.password)) {
+          const hashed = await hashPassword(password);
+          await updateUser({ ...found, password: hashed });
+          found.password = hashed;
+        }
+
         if (found.status === 'blocked') {
           setError('Tu cuenta ha sido bloqueada. Contacta al administrador.');
           setLoading(false);

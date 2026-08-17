@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { hashPassword } from '../lib/password';
 import type { User } from './types';
 
 export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User) => void }) {
@@ -11,7 +12,7 @@ export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; 
   });
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.username || !form.password || !form.nombre || !form.apellido) {
       setError('Complete usuario, contrasena, nombre y apellido');
@@ -21,11 +22,12 @@ export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; 
       setError('La contrasena debe tener al menos 6 caracteres');
       return;
     }
+    const hashedPassword = await hashPassword(form.password);
     const expiry = form.membershipHours ? new Date(Date.now() + Number(form.membershipHours) * 3600000).toISOString() : null;
     onAdd({
       id: Date.now().toString(),
       username: form.username,
-      password: form.password,
+      password: hashedPassword,
       nombre: form.nombre,
       apellido: form.apellido,
       email: form.email,

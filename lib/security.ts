@@ -57,9 +57,15 @@ export function checkRateLimit(key: string, maxAttempts = 10, windowMs = 60000):
 }
 
 const RATE_LIMIT_CLEANUP_INTERVAL = 5 * 60 * 1000;
-setInterval(() => {
-  const now = Date.now();
-  Array.from(loginAttempts.entries()).forEach(([key, entry]) => {
-    if (now > entry.resetAt) loginAttempts.delete(key);
-  });
-}, RATE_LIMIT_CLEANUP_INTERVAL);
+
+function startRateLimitCleanup(): void {
+  if (typeof window === 'undefined') return;
+  setInterval(() => {
+    const now = Date.now();
+    Array.from(loginAttempts.entries()).forEach(([key, entry]) => {
+      if (now > entry.resetAt) loginAttempts.delete(key);
+    });
+  }, RATE_LIMIT_CLEANUP_INTERVAL);
+}
+
+startRateLimitCleanup();

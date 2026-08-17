@@ -6,6 +6,7 @@ import { GraduationCap, AlertTriangle, Loader2, Check } from 'lucide-react';
 import { sanitizeUserInput, validatePassword, validateUsername, validateEmail } from '../lib/security';
 import { getUserByUsername, createUser } from '../lib/users';
 import { getDeviceId } from '../lib/device';
+import { hashPassword } from '../lib/password';
 import type { User } from './types';
 
 export default function RegisterPage({ onRegister, onBack }: { onRegister: (user: User) => void; onBack: () => void }) {
@@ -51,10 +52,11 @@ export default function RegisterPage({ onRegister, onBack }: { onRegister: (user
     });
 
     const currentDeviceId = await getDeviceId();
+    const hashedPassword = await hashPassword(formData.password);
     const newUser: User = {
       id: Date.now().toString(),
       username: clean.username,
-      password: formData.password,
+      password: hashedPassword,
       nombre: clean.nombre,
       apellido: clean.apellido,
       email: clean.email,

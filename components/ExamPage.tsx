@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Grid3X3, Flag, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
@@ -20,6 +20,28 @@ export default function ExamPage({ questions: examQuestions, state, setState, on
   const answeredCount = state.answers.filter(a => a !== null).length;
   const bookmarkedCount = state.bookmarks.filter(b => b).length;
 
+  const handleFinish = useCallback(() => {
+    if (state.isFinished) return;
+    const timeUsed = Math.floor((Date.now() - state.startTime) / 1000);
+    let correctAnswers = 0;
+    examQuestions.forEach((q, i) => {
+      if (state.answers[i] === q.correctAnswer) correctAnswers++;
+    });
+    const result: ExamResult = {
+      id: Date.now().toString(),
+      date: new Date().toISOString(),
+      config: { numQuestions: examQuestions.length, categories: ['mixed'] },
+      score: correctAnswers,
+      totalQuestions: examQuestions.length,
+      correctAnswers,
+      timeUsed,
+      answers: state.answers,
+      questions: examQuestions,
+    };
+    setState(prev => ({ ...prev, isFinished: true }));
+    onFinish(result);
+  }, [state, examQuestions, onFinish, setState]);
+
   useEffect(() => {
     if (state.isFinished) return;
     const timer = setInterval(() => {
@@ -38,7 +60,7 @@ export default function ExamPage({ questions: examQuestions, state, setState, on
     if (state.timeRemaining <= 0 && !state.isFinished) {
       handleFinish();
     }
-  }, [state.timeRemaining]);
+  }, [state.timeRemaining, state.isFinished, handleFinish]);
 
   const handleAnswer = (answerIndex: number) => {
     if (state.isFinished) return;
@@ -51,26 +73,6 @@ export default function ExamPage({ questions: examQuestions, state, setState, on
     const newBookmarks = [...state.bookmarks];
     newBookmarks[state.currentQuestion] = !newBookmarks[state.currentQuestion];
     setState({ ...state, bookmarks: newBookmarks });
-  };
-
-  const handleFinish = () => {
-    const timeUsed = Math.floor((Date.now() - state.startTime) / 1000);
-    let correctAnswers = 0;
-    examQuestions.forEach((q, i) => {
-      if (state.answers[i] === q.correctAnswer) correctAnswers++;
-    });
-    const result: ExamResult = {
-      id: Date.now().toString(),
-      date: new Date().toISOString(),
-      config: { numQuestions: examQuestions.length, categories: ['mixed'] },
-      score: correctAnswers,
-      totalQuestions: examQuestions.length,
-      correctAnswers,
-      timeUsed,
-      answers: state.answers,
-      questions: examQuestions,
-    };
-    onFinish(result);
   };
 
   const formatTime = (seconds: number) => {

@@ -3,15 +3,50 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     match /users/{userId} {
-      allow read, write: if true;
+      // Solo lectura para cualquier usuario autenticado
+      allow read: if true;
+      // Escritura solo con validación de estructura
+      allow create: if request.resource.data.keys().hasAll([
+        'id', 'username', 'password', 'nombre', 'apellido', 'role',
+        'status', 'createdAt', 'deviceId', 'deviceLocked'
+      ])
+      && request.resource.data.username is string
+      && request.resource.data.username.size() >= 3
+      && request.resource.data.password is string
+      && request.resource.data.password.size() >= 6
+      && request.resource.data.role in ['admin', 'user']
+      && request.resource.data.status in ['active', 'expired', 'blocked'];
+
+      allow update: if request.resource.data.keys().hasAll([
+        'id', 'username', 'password', 'nombre', 'apellido', 'role',
+        'status', 'createdAt', 'deviceId', 'deviceLocked'
+      ])
+      && request.resource.data.username is string
+      && request.resource.data.role in ['admin', 'user']
+      && request.resource.data.status in ['active', 'expired', 'blocked'];
+
+      allow delete: if true;
     }
 
     match /accessLogs/{logId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll([
+        'userId', 'username', 'deviceId', 'platform', 'browser',
+        'status', 'reason', 'timestamp'
+      ])
+      && request.resource.data.status in ['allowed', 'blocked'];
+      allow delete: if true;
     }
 
     match /examStats/{statId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll([
+        'userId', 'username', 'totalQuestions', 'correctAnswers',
+        'failedQuestionIds', 'date'
+      ])
+      && request.resource.data.totalQuestions is int
+      && request.resource.data.correctAnswers is int;
+      allow delete: if true;
     }
   }
 }
