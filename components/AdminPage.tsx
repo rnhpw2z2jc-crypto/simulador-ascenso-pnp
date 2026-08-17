@@ -29,8 +29,12 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
   const [statsLoading, setStatsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [openMembershipId, setOpenMembershipId] = useState<string | null>(null);
+  const [logsPage, setLogsPage] = useState(1);
+  const [statsPage, setStatsPage] = useState(1);
   const PAGE_SIZE_MOBILE = 10;
   const PAGE_SIZE_DESKTOP = 20;
+  const LOGS_PAGE_SIZE = 20;
+  const STATS_PAGE_SIZE = 15;
 
   useEffect(() => {
     loadUsers();
@@ -220,11 +224,11 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'users' ? 'bg-tactical-blue/20 text-tactical-blue-light' : 'bg-navy-800 text-slate-400 hover:bg-navy-700'}`}>
             <Users className="w-4 h-4 inline mr-1" /> Usuarios
           </button>
-          <button onClick={() => { setTab('logs'); loadLogs(); }}
+          <button onClick={() => { setTab('logs'); setLogsPage(1); loadLogs(); }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'logs' ? 'bg-tactical-blue/20 text-tactical-blue-light' : 'bg-navy-800 text-slate-400 hover:bg-navy-700'}`}>
             <FileText className="w-4 h-4 inline mr-1" /> Registro de Accesos
           </button>
-          <button onClick={() => { setTab('stats'); loadStats(); }}
+          <button onClick={() => { setTab('stats'); setStatsPage(1); loadStats(); }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === 'stats' ? 'bg-tactical-blue/20 text-tactical-blue-light' : 'bg-navy-800 text-slate-400 hover:bg-navy-700'}`}>
             <Target className="w-4 h-4 inline mr-1" /> Estadisticas
           </button>
@@ -380,8 +384,9 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
                 <p className="text-slate-400">Sin registros de acceso</p>
               </div>
             ) : (
+              <>
               <div className="space-y-2">
-                {logs.map(log => (
+                {logs.slice((logsPage - 1) * LOGS_PAGE_SIZE, logsPage * LOGS_PAGE_SIZE).map(log => (
                   <div key={log.id} className={`glass rounded-lg p-3 border-l-4 ${log.status === 'allowed' ? 'border-l-success' : 'border-l-danger'}`}>
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                       <div className="flex-1">
@@ -398,6 +403,20 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
                   </div>
                 ))}
               </div>
+              {Math.ceil(logs.length / LOGS_PAGE_SIZE) > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-4 pb-2">
+                  <button onClick={() => setLogsPage(p => Math.max(1, p - 1))} disabled={logsPage === 1}
+                    className="px-3 py-1.5 bg-navy-800 hover:bg-navy-700 text-xs text-white rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                    Anterior
+                  </button>
+                  <span className="text-xs text-slate-400">{logsPage} / {Math.ceil(logs.length / LOGS_PAGE_SIZE)}</span>
+                  <button onClick={() => setLogsPage(p => p + 1)} disabled={logsPage >= Math.ceil(logs.length / LOGS_PAGE_SIZE)}
+                    className="px-3 py-1.5 bg-navy-800 hover:bg-navy-700 text-xs text-white rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                    Siguiente
+                  </button>
+                </div>
+              )}
+              </>
             )}
           </div>
         )}
@@ -494,42 +513,62 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
                     <Users className="w-4 h-4 text-tactical-blue-light" />
                     Rendimiento por Usuario
                   </h4>
-                  <div className="space-y-2">
-                    {(() => {
-                      const userStats: Record<string, { username: string; exams: number; totalCorrect: number; totalQ: number; totalFailed: number[] }> = {};
-                      stats.forEach(e => {
-                        if (!userStats[e.userId]) userStats[e.userId] = { username: e.username, exams: 0, totalCorrect: 0, totalQ: 0, totalFailed: [] };
-                        userStats[e.userId].exams++;
-                        userStats[e.userId].totalCorrect += e.correctAnswers;
-                        userStats[e.userId].totalQ += e.totalQuestions;
-                        userStats[e.userId].totalFailed.push(...e.failedQuestionIds);
-                      });
-                      return Object.entries(userStats)
-                        .map(([userId, s]) => ({
-                          userId,
-                          ...s,
-                          avg: Math.round((s.totalCorrect / s.totalQ) * 100),
-                          uniqueFailed: new Set(s.totalFailed).size,
-                        }))
-                        .sort((a, b) => b.exams - a.exams);
-                    })().map(us => (
-                      <div key={us.userId} className="glass rounded-lg p-3 border-l-4 border-l-tactical-blue">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                          <div className="flex-1">
-                            <span className="text-sm font-medium text-white">{us.username}</span>
-                            <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
-                              <span>{us.exams} examen{us.exams !== 1 ? 'es' : ''}</span>
-                              <span>Promedio: <span className={`font-medium ${us.avg >= 60 ? 'text-success' : 'text-danger'}`}>{us.avg}%</span></span>
-                              <span>Preguntas unicas falladas: <span className="text-danger font-medium">{us.uniqueFailed}</span></span>
+                  {(() => {
+                    const userStats: Record<string, { username: string; exams: number; totalCorrect: number; totalQ: number; totalFailed: number[] }> = {};
+                    stats.forEach(e => {
+                      if (!userStats[e.userId]) userStats[e.userId] = { username: e.username, exams: 0, totalCorrect: 0, totalQ: 0, totalFailed: [] };
+                      userStats[e.userId].exams++;
+                      userStats[e.userId].totalCorrect += e.correctAnswers;
+                      userStats[e.userId].totalQ += e.totalQuestions;
+                      userStats[e.userId].totalFailed.push(...e.failedQuestionIds);
+                    });
+                    const sorted = Object.entries(userStats)
+                      .map(([userId, s]) => ({
+                        userId,
+                        ...s,
+                        avg: Math.round((s.totalCorrect / s.totalQ) * 100),
+                        uniqueFailed: new Set(s.totalFailed).size,
+                      }))
+                      .sort((a, b) => b.exams - a.exams);
+                    const statsTotalPages = Math.ceil(sorted.length / STATS_PAGE_SIZE);
+                    const paginatedStats = sorted.slice((statsPage - 1) * STATS_PAGE_SIZE, statsPage * STATS_PAGE_SIZE);
+                    return (
+                      <>
+                        <div className="space-y-2">
+                          {paginatedStats.map(us => (
+                            <div key={us.userId} className="glass rounded-lg p-3 border-l-4 border-l-tactical-blue">
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                <div className="flex-1">
+                                  <span className="text-sm font-medium text-white">{us.username}</span>
+                                  <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                                    <span>{us.exams} examen{us.exams !== 1 ? 'es' : ''}</span>
+                                    <span>Promedio: <span className={`font-medium ${us.avg >= 60 ? 'text-success' : 'text-danger'}`}>{us.avg}%</span></span>
+                                    <span>Preguntas unicas falladas: <span className="text-danger font-medium">{us.uniqueFailed}</span></span>
+                                  </div>
+                                </div>
+                                <div className={`px-3 py-1 rounded-full text-xs font-medium ${us.avg >= 60 ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`}>
+                                  {us.avg >= 60 ? 'APROBADO' : 'DESAPROBADO'}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                          <div className={`px-3 py-1 rounded-full text-xs font-medium ${us.avg >= 60 ? 'bg-success/20 text-success' : 'bg-danger/20 text-danger'}`}>
-                            {us.avg >= 60 ? 'APROBADO' : 'DESAPROBADO'}
-                          </div>
+                          ))}
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                        {statsTotalPages > 1 && (
+                          <div className="flex items-center justify-center gap-2 pt-4 pb-2">
+                            <button onClick={() => setStatsPage(p => Math.max(1, p - 1))} disabled={statsPage === 1}
+                              className="px-3 py-1.5 bg-navy-800 hover:bg-navy-700 text-xs text-white rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                              Anterior
+                            </button>
+                            <span className="text-xs text-slate-400">{statsPage} / {statsTotalPages}</span>
+                            <button onClick={() => setStatsPage(p => p + 1)} disabled={statsPage >= statsTotalPages}
+                              className="px-3 py-1.5 bg-navy-800 hover:bg-navy-700 text-xs text-white rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                              Siguiente
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </>
             )}

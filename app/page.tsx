@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Shield, Loader2 } from 'lucide-react';
+import { Shield, Loader2, Clock } from 'lucide-react';
 import { usePWA } from './usePWA';
 import { seedDefaultAdmin, migrateDeviceFields, getUserByUsername } from '../lib/users';
 import { saveExamStat } from '../lib/examStats';
 import { useQuestions } from '../components/useQuestions';
+import { useSessionTimeout } from '../lib/useSessionTimeout';
 import type { ExamConfig, ExamState, ExamResult, User, Question } from '../components/types';
 
 const LoginPage = dynamic(() => import('../components/LoginPage'), { ssr: false, loading: () => <SplashLoader /> });
@@ -46,6 +47,21 @@ export default function Home() {
   const [examQuestions, setExamQuestions] = useState<Question[]>([]);
   const { isInstallable, install, hasUpdate, applyUpdate } = usePWA();
   const { questions, loading: questionsLoading } = useQuestions();
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const userRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const handleSessionTimeout = useCallback(() => {
+    setSessionExpired(true);
+    setTimeout(() => {
+      setUser(null);
+      localStorage.removeItem('simulador_user');
+      localStorage.removeItem('simulador_last_activity');
+      setSessionExpired(false);
+      setCurrentPage('login');
+    }, 3000);
+  }, []);
+
+  useSessionTimeout(!!user && !sessionExpired, handleSessionTimeout);
 
   useEffect(() => {
     seedDefaultAdmin().catch(() => {});
@@ -56,6 +72,28 @@ export default function Home() {
       setCurrentPage('dashboard');
     }
   }, []);
+
+  useEffect(() => {
+    if (user && !sessionExpired) {
+      userRefreshRef.current = setInterval(async () => {
+        try {
+          const fresh = await getUserByUsername(user.username);
+          if (fresh) {
+            if (fresh.status === 'blocked' || fresh.status === 'expired') {
+              handleSessionTimeout();
+              return;
+            }
+            if (fresh.membershipExpiry && new Date(fresh.membershipExpiry) < new Date()) {
+              fresh.status = 'expired';
+            }
+            setUser({ ...fresh, id: fresh.id });
+            localStorage.setItem('simulador_user', JSON.stringify({ ...fresh, id: fresh.id }));
+          }
+        } catch {}
+      }, 60000);
+    }
+    return () => { if (userRefreshRef.current) clearInterval(userRefreshRef.current); };
+  }, [user?.username, sessionExpired, handleSessionTimeout]);
 
   const handleLogin = (userData: User) => {
     if (userData.membershipExpiry && new Date(userData.membershipExpiry) < new Date()) {
@@ -159,6 +197,19 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-navy-900">
+      <AnimatePresence mode="wait">
+        {sessionExpired && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] bg-navy-900/95 flex items-center justify-center">
+            <div className="text-center">
+              <Clock className="w-12 h-12 text-warning mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-white mb-2">Sesion Expirada</h2>
+              <p className="text-slate-400 text-sm">Tu sesion ha caducado por inactividad.</p>
+              <p className="text-slate-500 text-xs mt-1">Redirigiendo al login...</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <AnimatePresence mode="wait">
         {currentPage === 'login' && (
           <LoginPage 
