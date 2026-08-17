@@ -9,6 +9,7 @@ import { seedDefaultAdmin, migrateDeviceFields, getUserByUsername } from '../lib
 import { saveExamStat } from '../lib/examStats';
 import { useQuestions } from '../components/useQuestions';
 import { useSessionTimeout } from '../lib/useSessionTimeout';
+import ErrorBoundary from '../components/ErrorBoundary';
 import type { ExamConfig, ExamState, ExamResult, User, Question } from '../components/types';
 
 const LoginPage = dynamic(() => import('../components/LoginPage'), { ssr: false, loading: () => <SplashLoader /> });
@@ -196,6 +197,7 @@ export default function Home() {
   }
 
   return (
+    <ErrorBoundary>
     <div className="min-h-screen bg-navy-900">
       <AnimatePresence mode="wait">
         {sessionExpired && (
@@ -300,5 +302,6 @@ export default function Home() {
         )}
       </AnimatePresence>
     </div>
+    </ErrorBoundary>
   );
 }

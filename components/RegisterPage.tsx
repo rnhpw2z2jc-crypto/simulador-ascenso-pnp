@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { GraduationCap, AlertTriangle, Loader2, Check } from 'lucide-react';
-import { sanitizeUserInput, validatePassword, validateUsername, validateEmail } from '../lib/security';
+import { sanitizeUserInput, validatePassword, validateUsername, validateEmail, checkRateLimit } from '../lib/security';
 import { getUserByUsername, createUser } from '../lib/users';
 import { getDeviceId } from '../lib/device';
 import { hashPassword } from '../lib/password';
@@ -26,6 +26,12 @@ export default function RegisterPage({ onRegister, onBack }: { onRegister: (user
     e.preventDefault();
     setError('');
     setLoading(true);
+
+    if (!checkRateLimit('register', 3, 300000)) {
+      setError('Demasiados registros. Espere 5 minutos.');
+      setLoading(false);
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError('Las contrasenas no coinciden');
