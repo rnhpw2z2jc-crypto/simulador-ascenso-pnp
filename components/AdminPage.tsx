@@ -31,6 +31,8 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
   const [openMembershipId, setOpenMembershipId] = useState<string | null>(null);
   const [logsPage, setLogsPage] = useState(1);
   const [statsPage, setStatsPage] = useState(1);
+  const [subFilter, setSubFilter] = useState<'all' | 'active' | 'expired' | 'none'>('all');
+  const [sortBy, setSortBy] = useState<'name-asc' | 'name-desc' | 'username-asc' | 'username-desc'>('name-asc');
   const PAGE_SIZE_MOBILE = 10;
   const PAGE_SIZE_DESKTOP = 20;
   const LOGS_PAGE_SIZE = 20;
@@ -42,7 +44,7 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search]);
+  }, [search, subFilter, sortBy]);
 
   const loadUsers = async () => {
     try {
@@ -170,12 +172,27 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
     }
   };
 
-  const filtered = users.filter(u =>
-    u.username.toLowerCase().includes(search.toLowerCase()) ||
-    u.nombre.toLowerCase().includes(search.toLowerCase()) ||
-    u.apellido.toLowerCase().includes(search.toLowerCase()) ||
-    (u.email && u.email.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = users.filter(u => {
+    const matchesSearch = u.username.toLowerCase().includes(search.toLowerCase()) ||
+      u.nombre.toLowerCase().includes(search.toLowerCase()) ||
+      u.apellido.toLowerCase().includes(search.toLowerCase()) ||
+      (u.email && u.email.toLowerCase().includes(search.toLowerCase()));
+    if (!matchesSearch) return false;
+    if (subFilter === 'all') return true;
+    if (subFilter === 'none') return !u.membershipExpiry;
+    const expired = isExpired(u);
+    if (subFilter === 'active') return u.membershipExpiry && !expired;
+    if (subFilter === 'expired') return expired;
+    return true;
+  }).sort((a, b) => {
+    switch (sortBy) {
+      case 'name-asc': return `${a.nombre} ${a.apellido}`.localeCompare(`${b.nombre} ${b.apellido}`);
+      case 'name-desc': return `${b.nombre} ${b.apellido}`.localeCompare(`${a.nombre} ${a.apellido}`);
+      case 'username-asc': return a.username.localeCompare(b.username);
+      case 'username-desc': return b.username.localeCompare(a.username);
+      default: return 0;
+    }
+  });
 
   const getPageSize = () => (typeof window !== 'undefined' && window.innerWidth >= 640 ? PAGE_SIZE_DESKTOP : PAGE_SIZE_MOBILE);
   const totalPages = Math.ceil(filtered.length / getPageSize());
@@ -248,9 +265,26 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
               <User className="w-4 h-4" /> Nuevo
             </button>
           </div>
-          <div className="flex items-center justify-between text-xs text-slate-500">
+          <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
             <span>{filtered.length === users.length ? `${users.length} usuarios` : `${filtered.length} de ${users.length} usuarios`}</span>
             {totalPages > 1 && <span>Pagina {currentPage} de {totalPages}</span>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <div className="flex gap-1">
+              {([['all', 'Todos'], ['active', 'Activos'], ['expired', 'Vencidos'], ['none', 'Sin fecha']] as const).map(([val, label]) => (
+                <button key={val} onClick={() => setSubFilter(val)}
+                  className={`px-2.5 py-1 text-xs rounded-md transition-colors ${subFilter === val ? 'bg-tactical-blue/30 text-tactical-blue-light' : 'bg-navy-800 text-slate-500 hover:bg-navy-700'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}
+              className="px-2.5 py-1 text-xs bg-navy-800 border border-navy-700 text-slate-300 rounded-md focus:outline-none focus:border-tactical-blue">
+              <option value="name-asc">Nombre A-Z</option>
+              <option value="name-desc">Nombre Z-A</option>
+              <option value="username-asc">Usuario A-Z</option>
+              <option value="username-desc">Usuario Z-A</option>
+            </select>
           </div>
         </div>
 
