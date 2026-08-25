@@ -172,6 +172,17 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
     }
   };
 
+  const isExpired = (u: UserType) => {
+    if (!u.membershipExpiry) return false;
+    return new Date(u.membershipExpiry) < new Date();
+  };
+
+  const daysLeft = (u: UserType) => {
+    if (!u.membershipExpiry) return null;
+    const diff = new Date(u.membershipExpiry).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / 86400000));
+  };
+
   const filtered = users.filter(u => {
     const matchesSearch = u.username.toLowerCase().includes(search.toLowerCase()) ||
       u.nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -197,17 +208,6 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
   const getPageSize = () => (typeof window !== 'undefined' && window.innerWidth >= 640 ? PAGE_SIZE_DESKTOP : PAGE_SIZE_MOBILE);
   const totalPages = Math.ceil(filtered.length / getPageSize());
   const paginatedUsers = filtered.slice((currentPage - 1) * getPageSize(), currentPage * getPageSize());
-
-  const isExpired = (u: UserType) => {
-    if (!u.membershipExpiry) return false;
-    return new Date(u.membershipExpiry) < new Date();
-  };
-
-  const daysLeft = (u: UserType) => {
-    if (!u.membershipExpiry) return null;
-    const diff = new Date(u.membershipExpiry).getTime() - Date.now();
-    return Math.max(0, Math.ceil(diff / 86400000));
-  };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="min-h-screen">
