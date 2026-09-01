@@ -16,19 +16,21 @@ export interface UserData {
   createdAt: string;
   status: 'active' | 'expired' | 'blocked';
   devices: string[];
+  maxDevices: number;
 }
 
 const COLLECTION = 'users';
 
-const MAX_DEVICES = 2;
+const DEFAULT_MAX_DEVICES = 1;
 
 function normalizeUser(u: UserData): UserData {
   const legacy = u as unknown as { deviceId?: string | null; deviceLocked?: boolean };
-  const devices = Array.isArray(u.devices) ? u.devices.slice(0, MAX_DEVICES) : [];
+  const devices = Array.isArray(u.devices) ? u.devices.slice(0, 2) : [];
   if (devices.length === 0 && legacy.deviceId && legacy.deviceLocked) {
     devices.push(legacy.deviceId);
   }
-  return { ...u, devices };
+  const maxDevices = typeof u.maxDevices === 'number' ? Math.min(2, Math.max(1, Math.round(u.maxDevices))) : DEFAULT_MAX_DEVICES;
+  return { ...u, devices, maxDevices };
 }
 
 export async function getAllUsers(): Promise<UserData[]> {
@@ -85,6 +87,7 @@ export async function seedDefaultAdmin(): Promise<void> {
       createdAt: new Date().toISOString(),
       status: 'active',
       devices: [],
+      maxDevices: DEFAULT_MAX_DEVICES,
     });
   } else {
     const passwordValid = await verifyPassword(ADMIN_DEFAULT_PASSWORD, existing.password);
@@ -97,16 +100,19 @@ export async function seedDefaultAdmin(): Promise<void> {
 
 export async function migrateDeviceFields(): Promise<void> {
   try {
-    const all = await getAllUsers();
-    for (const u of all) {
-      const needsUpdate = u.devices === undefined;
-      if (needsUpdate) {
-        const legacy = u as unknown as { deviceId?: string | null; deviceLocked?: boolean };
-        const devices = legacy.deviceId && legacy.deviceLocked ? [legacy.deviceId] : [];
-        await updateDoc(doc(db, COLLECTION, u.id), {
-          devices,
-        });
-      }
+    const snap = await getDocs(collection(db, COLLECTION));
+    for (const docSnap of snap.docs) {
+      const raw = docSnap.data();
+      const hasDevices = typeof raw.devices !== 'undefined';
+      const hasMaxDevices = typeof raw.maxDevices !== 'undefined';
+      if (hasDevices && hasMaxDevices) continue;
+      const legacy = raw as { deviceId?: string | null; deviceLocked?: boolean };
+      const devices = Array.isArray(raw.devices) ? raw.devices.slice(0, 2)
+        : (legacy.deviceId && legacy.deviceLocked ? [legacy.deviceId] : []);
+      await updateDoc(docSnap.ref, {
+        devices,
+        maxDevices: typeof raw.maxDevices === 'number' ? raw.maxDevices : DEFAULT_MAX_DEVICES,
+      });
     }
   } catch {
     // silent fail on migration

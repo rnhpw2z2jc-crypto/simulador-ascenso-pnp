@@ -66,7 +66,7 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
         const { platform, browser } = getDeviceInfo();
         const isAdmin = found.role === 'admin';
 
-        if (!isAdmin && !found.devices.includes(currentDeviceId) && found.devices.length >= 2) {
+        if (!isAdmin && !found.devices.includes(currentDeviceId) && found.devices.length >= found.maxDevices) {
           await logAccessAttempt({
             userId: found.id,
             username: found.username,
@@ -74,9 +74,9 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
             platform,
             browser,
             status: 'blocked',
-            reason: 'Limite de 2 dispositivos alcanzado',
+            reason: `Limite de ${found.maxDevices} dispositivo${found.maxDevices !== 1 ? 's' : ''} alcanzado`,
           });
-          setError('Esta cuenta ya esta vinculada a 2 dispositivos. Si cambio de equipo, comuniquese con el administrador.');
+          setError(`Esta cuenta solo puede usarse en ${found.maxDevices} dispositivo${found.maxDevices !== 1 ? 's' : ''}. Si cambio de equipo, comuniquese con el administrador.`);
           setLoading(false);
           return;
         }

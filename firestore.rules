@@ -8,7 +8,7 @@ service cloud.firestore {
       // Escritura solo con validación de estructura
       allow create: if request.resource.data.keys().hasAll([
         'id', 'username', 'password', 'nombre', 'apellido', 'role',
-        'status', 'createdAt', 'devices'
+        'status', 'createdAt', 'devices', 'maxDevices'
       ])
       && request.resource.data.username is string
       && request.resource.data.username.size() >= 3
@@ -17,17 +17,23 @@ service cloud.firestore {
       && request.resource.data.role in ['admin', 'user']
       && request.resource.data.status in ['active', 'expired', 'blocked']
       && request.resource.data.devices is list
-      && request.resource.data.devices.size() <= 2;
+      && request.resource.data.devices.size() <= 2
+      && request.resource.data.maxDevices is int
+      && request.resource.data.maxDevices >= 1
+      && request.resource.data.maxDevices <= 2;
 
       allow update: if request.resource.data.keys().hasAll([
         'id', 'username', 'password', 'nombre', 'apellido', 'role',
-        'status', 'createdAt', 'devices'
+        'status', 'createdAt', 'devices', 'maxDevices'
       ])
       && request.resource.data.username is string
       && request.resource.data.role in ['admin', 'user']
       && request.resource.data.status in ['active', 'expired', 'blocked']
       && request.resource.data.devices is list
-      && request.resource.data.devices.size() <= 2;
+      && request.resource.data.devices.size() <= 2
+      && request.resource.data.maxDevices is int
+      && request.resource.data.maxDevices >= 1
+      && request.resource.data.maxDevices <= 2;
 
       allow delete: if true;
     }

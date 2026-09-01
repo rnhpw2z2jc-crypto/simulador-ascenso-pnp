@@ -36,6 +36,7 @@ export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; 
       createdAt: new Date().toISOString(),
       status: 'active',
       devices: [],
+      maxDevices: 1,
     });
   };
 

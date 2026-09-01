@@ -71,6 +71,7 @@ export default function RegisterPage({ onRegister, onBack }: { onRegister: (user
       createdAt: new Date().toISOString(),
       status: 'active',
       devices: [currentDeviceId],
+      maxDevices: 1,
     };
 
     try {

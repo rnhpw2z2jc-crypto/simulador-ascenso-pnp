@@ -187,6 +187,22 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
     }
   };
 
+  const handleToggleMaxDevices = async (id: string) => {
+    const target = users.find(u => u.id === id);
+    if (!target) return;
+    const newMax = target.maxDevices === 2 ? 1 : 2;
+    const updated = { ...target, maxDevices: newMax, devices: target.devices.slice(0, newMax) };
+    try {
+      await updateUser(updated);
+      setUsers(users.map(u => u.id === id ? updated : u));
+      setMsg(`${target.username}: limite de ${newMax} dispositivo${newMax !== 1 ? 's' : ''}${newMax === 1 && target.devices.length > 1 ? ' (dispositivos excedentes liberados)' : ''}`);
+      setTimeout(() => setMsg(''), 4000);
+    } catch {
+      setMsg('Error al actualizar limite de dispositivos');
+      setTimeout(() => setMsg(''), 3000);
+    }
+  };
+
   const isExpired = (u: UserType) => {
     if (!u.membershipExpiry) return false;
     return new Date(u.membershipExpiry) < new Date();
@@ -336,7 +352,7 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
                       )}
                     </div>
                     <div className="text-xs text-slate-500 mt-1">
-                      Dispositivos ({u.devices.length}/2): {u.devices.length > 0 ? (
+                      Dispositivos ({u.devices.length}/{u.maxDevices}): {u.devices.length > 0 ? (
                         u.devices.map((d, i) => (
                           <span key={d} className="inline-flex items-center gap-1 mr-2">
                             <span className="text-gold">Vinculado {i + 1}</span>
@@ -356,9 +372,15 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
                       className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
                         u.devices.length > 0 ? 'bg-gold/20 text-gold hover:bg-gold/40' : 'bg-navy-700 text-slate-500'
                       }`}
-                      title={u.devices.length > 0 ? `Liberar todos los dispositivos (${u.devices.length}/2) para que pueda ingresar desde otro equipo` : 'Sin dispositivos vinculados'}
+                      title={u.devices.length > 0 ? `Liberar todos los dispositivos (${u.devices.length}/${u.maxDevices}) para que pueda ingresar desde otro equipo` : 'Sin dispositivos vinculados'}
                     >
                       {u.devices.length > 0 ? `Liberar (${u.devices.length})` : 'Sin vinc.'}
+                    </button>
+                    <button onClick={() => handleToggleMaxDevices(u.id)}
+                      className="px-3 py-1.5 bg-tactical-blue/10 hover:bg-tactical-blue/30 text-xs text-tactical-blue-light rounded-lg transition-colors"
+                      title={u.maxDevices === 2 ? 'Reducir a 1 dispositivo' : 'Habilitar 2 dispositivos para este usuario'}
+                    >
+                      {u.maxDevices}/2 disp.
                     </button>
                     <div className="relative">
                       <button onClick={() => setOpenMembershipId(openMembershipId === u.id ? null : u.id)}

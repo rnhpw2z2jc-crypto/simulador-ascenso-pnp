@@ -20,6 +20,7 @@ export interface User {
   createdAt: string;
   status: 'active' | 'expired' | 'blocked';
   devices: string[];
+  maxDevices: number;
 }
 
 export interface ExamConfig {
