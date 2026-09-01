@@ -19,8 +19,7 @@ export interface User {
   membershipExpiry: string | null;
   createdAt: string;
   status: 'active' | 'expired' | 'blocked';
-  deviceId: string | null;
-  deviceLocked: boolean;
+  devices: string[];
 }
 
 export interface ExamConfig {

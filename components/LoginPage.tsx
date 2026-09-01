@@ -66,7 +66,7 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
         const { platform, browser } = getDeviceInfo();
         const isAdmin = found.role === 'admin';
 
-        if (!isAdmin && found.deviceLocked && found.deviceId && found.deviceId !== currentDeviceId) {
+        if (!isAdmin && !found.devices.includes(currentDeviceId) && found.devices.length >= 2) {
           await logAccessAttempt({
             userId: found.id,
             username: found.username,
@@ -74,9 +74,9 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
             platform,
             browser,
             status: 'blocked',
-            reason: 'Dispositivo no coincide',
+            reason: 'Limite de 2 dispositivos alcanzado',
           });
-          setError('Esta cuenta ya esta registrada en otro dispositivo. Si cambio de equipo, comuniquese con el administrador.');
+          setError('Esta cuenta ya esta vinculada a 2 dispositivos. Si cambio de equipo, comuniquese con el administrador.');
           setLoading(false);
           return;
         }
@@ -92,8 +92,8 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
             reason: 'Admin - acceso libre',
           });
           onLogin(found);
-        } else if (!found.deviceLocked || !found.deviceId) {
-          const updatedUser = { ...found, deviceId: currentDeviceId, deviceLocked: true };
+        } else if (!found.devices.includes(currentDeviceId)) {
+          const updatedUser = { ...found, devices: [...found.devices, currentDeviceId] };
           await updateUser(updatedUser);
           await logAccessAttempt({
             userId: found.id,
@@ -102,7 +102,7 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
             platform,
             browser,
             status: 'allowed',
-            reason: 'Primer login o dispositivo liberado',
+            reason: 'Nuevo dispositivo vinculado',
           });
           onLogin(updatedUser);
         } else {

@@ -35,8 +35,7 @@ export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; 
       membershipExpiry: expiry,
       createdAt: new Date().toISOString(),
       status: 'active',
-      deviceId: null,
-      deviceLocked: false,
+      devices: [],
     });
   };
 

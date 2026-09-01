@@ -157,17 +157,32 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
     }
   };
 
-  const handleUnlockDevice = async (id: string) => {
+  const handleUnlockDevice = async (id: string, deviceIdToRemove: string) => {
     const target = users.find(u => u.id === id);
     if (!target) return;
-    const updated = { ...target, deviceId: null, deviceLocked: false };
+    const updated = { ...target, devices: target.devices.filter(d => d !== deviceIdToRemove) };
     try {
       await updateUser(updated);
       setUsers(users.map(u => u.id === id ? updated : u));
-      setMsg(`Dispositivo liberado para ${target.username}. Podra ingresar desde cualquier equipo.`);
+      setMsg(`Dispositivo liberado para ${target.username} (${target.devices.length - 1} vinculado${target.devices.length - 1 !== 1 ? 's' : ''} restante).`);
       setTimeout(() => setMsg(''), 4000);
     } catch {
       setMsg('Error al liberar dispositivo');
+      setTimeout(() => setMsg(''), 3000);
+    }
+  };
+
+  const handleUnlockAll = async (id: string) => {
+    const target = users.find(u => u.id === id);
+    if (!target) return;
+    const updated = { ...target, devices: [] };
+    try {
+      await updateUser(updated);
+      setUsers(users.map(u => u.id === id ? updated : u));
+      setMsg(`Todos los dispositivos de ${target.username} liberados. Podra ingresar desde cualquier equipo.`);
+      setTimeout(() => setMsg(''), 4000);
+    } catch {
+      setMsg('Error al liberar dispositivos');
       setTimeout(() => setMsg(''), 3000);
     }
   };
@@ -321,8 +336,15 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
                       )}
                     </div>
                     <div className="text-xs text-slate-500 mt-1">
-                      Dispositivo: {u.deviceLocked ? (
-                        <span className="text-gold">Vinculado <span className="text-slate-600">({u.deviceId?.slice(0, 12)}...)</span></span>
+                      Dispositivos ({u.devices.length}/2): {u.devices.length > 0 ? (
+                        u.devices.map((d, i) => (
+                          <span key={d} className="inline-flex items-center gap-1 mr-2">
+                            <span className="text-gold">Vinculado {i + 1}</span>
+                            <span className="text-slate-600">({d.slice(0, 12)}...)</span>
+                            <button onClick={() => handleUnlockDevice(u.id, d)} title="Liberar este dispositivo"
+                              className="px-1.5 py-0.5 bg-gold/20 hover:bg-gold/40 text-gold text-[10px] rounded transition-colors">X</button>
+                          </span>
+                        ))
                       ) : (
                         <span className="text-slate-400">Sin vincular</span>
                       )}
@@ -330,13 +352,13 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
                   </div>
                   <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 flex-shrink-0">
                     <button onClick={() => setEditUser(u)} className="px-3 py-1.5 bg-navy-700 hover:bg-navy-600 text-xs text-white rounded-lg transition-colors">Editar</button>
-                    <button onClick={() => handleUnlockDevice(u.id)}
+                    <button onClick={() => handleUnlockAll(u.id)}
                       className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
-                        u.deviceLocked ? 'bg-gold/20 text-gold hover:bg-gold/40' : 'bg-navy-700 text-slate-500'
+                        u.devices.length > 0 ? 'bg-gold/20 text-gold hover:bg-gold/40' : 'bg-navy-700 text-slate-500'
                       }`}
-                      title={u.deviceLocked ? 'Liberar dispositivo para que pueda ingresar desde otro equipo' : 'Sin dispositivo vinculado'}
+                      title={u.devices.length > 0 ? `Liberar todos los dispositivos (${u.devices.length}/2) para que pueda ingresar desde otro equipo` : 'Sin dispositivos vinculados'}
                     >
-                      {u.deviceLocked ? 'Liberar' : 'Sin vinc.'}
+                      {u.devices.length > 0 ? `Liberar (${u.devices.length})` : 'Sin vinc.'}
                     </button>
                     <div className="relative">
                       <button onClick={() => setOpenMembershipId(openMembershipId === u.id ? null : u.id)}

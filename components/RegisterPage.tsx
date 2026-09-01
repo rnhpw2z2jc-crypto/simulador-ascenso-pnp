@@ -70,8 +70,7 @@ export default function RegisterPage({ onRegister, onBack }: { onRegister: (user
       membershipExpiry: null,
       createdAt: new Date().toISOString(),
       status: 'active',
-      deviceId: currentDeviceId,
-      deviceLocked: true,
+      devices: [currentDeviceId],
     };
 
     try {

@@ -15,15 +15,25 @@ export interface UserData {
   membershipExpiry: string | null;
   createdAt: string;
   status: 'active' | 'expired' | 'blocked';
-  deviceId: string | null;
-  deviceLocked: boolean;
+  devices: string[];
 }
 
 const COLLECTION = 'users';
 
+const MAX_DEVICES = 2;
+
+function normalizeUser(u: UserData): UserData {
+  const legacy = u as unknown as { deviceId?: string | null; deviceLocked?: boolean };
+  const devices = Array.isArray(u.devices) ? u.devices.slice(0, MAX_DEVICES) : [];
+  if (devices.length === 0 && legacy.deviceId && legacy.deviceLocked) {
+    devices.push(legacy.deviceId);
+  }
+  return { ...u, devices };
+}
+
 export async function getAllUsers(): Promise<UserData[]> {
   const snap = await getDocs(collection(db, COLLECTION));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as UserData));
+  return snap.docs.map(d => normalizeUser({ id: d.id, ...d.data() } as UserData));
 }
 
 export async function getUserByUsername(username: string): Promise<UserData | null> {
@@ -31,7 +41,7 @@ export async function getUserByUsername(username: string): Promise<UserData | nu
   const snap = await getDocs(q);
   if (snap.empty) return null;
   const doc = snap.docs[0];
-  return { id: doc.id, ...doc.data() } as UserData;
+  return normalizeUser({ id: doc.id, ...doc.data() } as UserData);
 }
 
 export async function createUser(user: UserData): Promise<void> {
@@ -74,8 +84,7 @@ export async function seedDefaultAdmin(): Promise<void> {
       membershipExpiry: null,
       createdAt: new Date().toISOString(),
       status: 'active',
-      deviceId: null,
-      deviceLocked: false,
+      devices: [],
     });
   } else {
     const passwordValid = await verifyPassword(ADMIN_DEFAULT_PASSWORD, existing.password);
@@ -90,11 +99,12 @@ export async function migrateDeviceFields(): Promise<void> {
   try {
     const all = await getAllUsers();
     for (const u of all) {
-      const needsUpdate = u.deviceId === undefined || u.deviceLocked === undefined;
+      const needsUpdate = u.devices === undefined;
       if (needsUpdate) {
+        const legacy = u as unknown as { deviceId?: string | null; deviceLocked?: boolean };
+        const devices = legacy.deviceId && legacy.deviceLocked ? [legacy.deviceId] : [];
         await updateDoc(doc(db, COLLECTION, u.id), {
-          deviceId: u.deviceId ?? null,
-          deviceLocked: u.deviceLocked ?? false,
+          devices,
         });
       }
     }

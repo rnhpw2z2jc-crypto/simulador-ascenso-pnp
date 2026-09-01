@@ -8,22 +8,26 @@ service cloud.firestore {
       // Escritura solo con validación de estructura
       allow create: if request.resource.data.keys().hasAll([
         'id', 'username', 'password', 'nombre', 'apellido', 'role',
-        'status', 'createdAt', 'deviceId', 'deviceLocked'
+        'status', 'createdAt', 'devices'
       ])
       && request.resource.data.username is string
       && request.resource.data.username.size() >= 3
       && request.resource.data.password is string
       && request.resource.data.password.size() >= 6
       && request.resource.data.role in ['admin', 'user']
-      && request.resource.data.status in ['active', 'expired', 'blocked'];
+      && request.resource.data.status in ['active', 'expired', 'blocked']
+      && request.resource.data.devices is list
+      && request.resource.data.devices.size() <= 2;
 
       allow update: if request.resource.data.keys().hasAll([
         'id', 'username', 'password', 'nombre', 'apellido', 'role',
-        'status', 'createdAt', 'deviceId', 'deviceLocked'
+        'status', 'createdAt', 'devices'
       ])
       && request.resource.data.username is string
       && request.resource.data.role in ['admin', 'user']
-      && request.resource.data.status in ['active', 'expired', 'blocked'];
+      && request.resource.data.status in ['active', 'expired', 'blocked']
+      && request.resource.data.devices is list
+      && request.resource.data.devices.size() <= 2;
 
       allow delete: if true;
     }
