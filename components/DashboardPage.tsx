@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { 
   Shield, Settings, User, LogOut, FileText, Target, Trophy, Clock, 
   Hash, BookMarked, Zap, BookOpen, Award, Check, Play, ArrowRight, 
-  BarChart3, Brain, Download, AlertTriangle, TrendingUp 
+  BarChart3, Brain, Download, AlertTriangle, TrendingUp, ChevronDown 
 } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
 import type { User as UserType, ExamConfig, ExamResult, Question, ExamState } from './types';
@@ -33,6 +33,7 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['all']);
   const [failedCount, setFailedCount] = useState(0);
   const [recognitionCategory, setRecognitionCategory] = useState<string | null>(null);
+  const [openMode, setOpenMode] = useState<'recognition' | 'simulacro' | null>('recognition');
 
   useEffect(() => {
     const failedIds: number[] = JSON.parse(localStorage.getItem('simulador_failed_ids') || '[]');
@@ -375,84 +376,115 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
 
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.33 }}
           className="mb-8">
-          <div className="glass rounded-xl p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-11 h-11 rounded-xl bg-tactical-blue/25 flex items-center justify-center">
+          <div className="glass rounded-xl p-3 sm:p-4 space-y-3">
+            {/* Boton RECONOCIMIENTO TACTICO */}
+            <button onClick={() => setOpenMode(openMode === 'recognition' ? null : 'recognition')}
+              className={`w-full rounded-xl p-4 flex items-center gap-4 text-left transition-all duration-300 border ${
+                openMode === 'recognition'
+                  ? 'border-tactical-blue bg-tactical-blue/20'
+                  : 'border-navy-700 bg-navy-800/50 hover:border-tactical-blue hover:bg-tactical-blue/5'
+              }`}>
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-tactical-blue to-tactical-blue-dark flex items-center justify-center flex-shrink-0">
                 <span className="text-2xl">🔭</span>
               </div>
-              <div>
-                <h2 className="text-lg sm:text-xl font-bold text-white">RECONOCIMIENTO TACTICO</h2>
-                <p className="text-xs text-slate-400">Selecciona el tema o norma legal a repasar</p>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-white text-base sm:text-lg leading-tight">RECONOCIMIENTO TACTICO</p>
+                <p className="text-xs text-slate-400 truncate">Entrena por tema o norma, sin presion de tiempo</p>
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <button onClick={() => setRecognitionCategory(null)}
-                className={`p-3 rounded-xl border text-left transition-all duration-300 group ${
-                  recognitionCategory === null
-                    ? 'border-tactical-blue bg-tactical-blue/15'
-                    : 'border-navy-700 bg-navy-800/50 hover:border-tactical-blue hover:bg-tactical-blue/5'
-                }`}>
-                <span className={`text-sm font-medium block ${recognitionCategory === null ? 'text-tactical-blue-light' : 'text-white group-hover:text-tactical-blue-light'}`}>
-                  📚 {recognitionCategory === null && <Check className="w-3.5 h-3.5 inline ml-1" />} Todos los Temas
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className={`text-[11px] font-semibold px-2 py-1 rounded-md ${openMode === 'recognition' ? 'bg-tactical-blue/30 text-tactical-blue-light' : 'bg-navy-700 text-slate-300'}`}>
+                  {recognitionCategory ? getCategoryDisplayName(getCategoryKey(recognitionCategory)) : 'Todos'}
                 </span>
-                <span className="text-xs text-slate-500">{questions.length} preguntas</span>
-              </button>
-              {availableCategories.map((cat) => {
-                const count = questions.filter(q => q.category === cat).length;
-                const isActive = recognitionCategory === cat;
-                return (
-                  <button key={cat}
-                    onClick={() => setRecognitionCategory(cat)}
+                <ChevronDown className={`w-5 h-5 text-slate-300 transition-transform duration-300 ${openMode === 'recognition' ? 'rotate-180' : ''}`} />
+              </div>
+            </button>
+
+            {openMode === 'recognition' && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}
+                className="overflow-hidden">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                  <button onClick={() => setRecognitionCategory(null)}
                     className={`p-3 rounded-xl border text-left transition-all duration-300 group ${
-                      isActive
+                      recognitionCategory === null
                         ? 'border-tactical-blue bg-tactical-blue/15'
                         : 'border-navy-700 bg-navy-800/50 hover:border-tactical-blue hover:bg-tactical-blue/5'
                     }`}>
-                    <span className={`text-sm font-medium block ${isActive ? 'text-tactical-blue-light' : 'text-white group-hover:text-tactical-blue-light'}`}>
-                      ⚖️ {isActive && <Check className="w-3.5 h-3.5 inline ml-1" />} {getCategoryDisplayName(getCategoryKey(cat))}
+                    <span className={`text-sm font-medium block ${recognitionCategory === null ? 'text-tactical-blue-light' : 'text-white group-hover:text-tactical-blue-light'}`}>
+                      📚 {recognitionCategory === null && <Check className="w-3.5 h-3.5 inline ml-1" />} Todos los Temas
                     </span>
-                    <span className="text-xs text-slate-500">{count} preguntas</span>
+                    <span className="text-xs text-slate-500">{questions.length} preguntas</span>
                   </button>
-                );
-              })}
-            </div>
-          </div>
+                  {availableCategories.map((cat) => {
+                    const count = questions.filter(q => q.category === cat).length;
+                    const isActive = recognitionCategory === cat;
+                    return (
+                      <button key={cat}
+                        onClick={() => setRecognitionCategory(cat)}
+                        className={`p-3 rounded-xl border text-left transition-all duration-300 group ${
+                          isActive
+                            ? 'border-tactical-blue bg-tactical-blue/15'
+                            : 'border-navy-700 bg-navy-800/50 hover:border-tactical-blue hover:bg-tactical-blue/5'
+                        }`}>
+                        <span className={`text-sm font-medium block ${isActive ? 'text-tactical-blue-light' : 'text-white group-hover:text-tactical-blue-light'}`}>
+                          ⚖️ {isActive && <Check className="w-3.5 h-3.5 inline ml-1" />} {getCategoryDisplayName(getCategoryKey(cat))}
+                        </span>
+                        <span className="text-xs text-slate-500">{count} preguntas</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button onClick={() => onStartRecognition(recognitionCategory)}
+                  disabled={questions.length === 0}
+                  className="mt-3 w-full py-3 bg-gradient-to-r from-tactical-blue to-tactical-blue-dark hover:opacity-90 border border-tactical-blue-light/40 text-white font-bold rounded-xl transition-all duration-300 btn-glow flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  <span className="text-lg">🔭</span>
+                  INICIAR RECONOCIMIENTO
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </motion.div>
+            )}
 
-          <button onClick={() => onStartRecognition(recognitionCategory)}
-            disabled={questions.length === 0}
-            className="mt-4 w-full py-4 bg-gradient-to-r from-tactical-blue to-tactical-blue-dark hover:opacity-90 border border-tactical-blue-light/40 text-white font-bold text-lg rounded-xl transition-all duration-300 btn-glow flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
-            <span className="text-2xl">🔭</span>
-            INICIAR RECONOCIMIENTO
-            <ArrowRight className="w-5 h-5" />
-          </button>
-          <p className="text-xs text-slate-500 text-center mt-2">
-            Revisa y responde por tema o norma, sin presion de tiempo, con retroalimentacion inmediata
-          </p>
-        </motion.div>
+            <div className="h-px bg-navy-700/70" />
 
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.35 }}>
-          <div className="glass rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
-              <Target className="w-5 h-5 text-gold" />
-              Simulacro Completo por Tema
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">Todas las preguntas de un solo tema. Tiempo: 1.5 min por pregunta</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {availableCategories.map((cat) => {
-                const count = questions.filter(q => q.category === cat).length;
-                const timeMin = Math.ceil(count * 1.5);
-                return (
-                  <button key={cat}
-                    onClick={() => onStartExam({ numQuestions: count, categories: [cat] })}
-                    className="p-3 rounded-xl border border-navy-700 bg-navy-800/50 hover:border-gold hover:bg-gold/5 transition-all duration-300 text-left group">
-                    <span className="text-sm font-medium text-white group-hover:text-gold block">{getCategoryDisplayName(getCategoryKey(cat))}</span>
-                    <span className="text-xs text-slate-500">{count} preguntas</span>
-                    <span className="text-xs text-gold/70 ml-2">{timeMin >= 60 ? `${Math.floor(timeMin/60)}h ${timeMin%60}m` : `${timeMin}m`}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {/* Boton SIMULACRO COMPLETO POR TEMA */}
+            <button onClick={() => setOpenMode(openMode === 'simulacro' ? null : 'simulacro')}
+              className={`w-full rounded-xl p-4 flex items-center gap-4 text-left transition-all duration-300 border ${
+                openMode === 'simulacro'
+                  ? 'border-gold bg-gold/10'
+                  : 'border-navy-700 bg-navy-800/50 hover:border-gold hover:bg-gold/5'
+              }`}>
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center flex-shrink-0">
+                <span className="text-2xl">📋</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-white text-base sm:text-lg leading-tight">SIMULACRO COMPLETO POR TEMA</p>
+                <p className="text-xs text-slate-400 truncate">Todas las preguntas del tema, 1.5 min cada una</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-xs text-gold/70 hidden sm:block"><Clock className="w-4 h-4 inline mr-1" />1.5 min/preg</span>
+                <ChevronDown className={`w-5 h-5 text-slate-300 transition-transform duration-300 ${openMode === 'simulacro' ? 'rotate-180' : ''}`} />
+              </div>
+            </button>
+
+            {openMode === 'simulacro' && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}
+                className="overflow-hidden">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+                  {availableCategories.map((cat) => {
+                    const count = questions.filter(q => q.category === cat).length;
+                    const timeMin = Math.ceil(count * 1.5);
+                    return (
+                      <button key={cat}
+                        onClick={() => onStartExam({ numQuestions: count, categories: [cat] })}
+                        className="p-3 rounded-xl border border-navy-700 bg-navy-800/50 hover:border-gold hover:bg-gold/5 transition-all duration-300 text-left group">
+                        <span className="text-sm font-medium text-white group-hover:text-gold block">{getCategoryDisplayName(getCategoryKey(cat))}</span>
+                        <span className="text-xs text-slate-500">{count} preguntas</span>
+                        <span className="text-xs text-gold/70 ml-2">{timeMin >= 60 ? `${Math.floor(timeMin/60)}h ${timeMin%60}m` : `${timeMin}m`}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
           </div>
         </motion.div>
       </div>
