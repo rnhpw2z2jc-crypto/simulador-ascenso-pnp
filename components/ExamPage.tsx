@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Grid3X3, Flag, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Clock, Grid3X3, Flag, AlertTriangle, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
 import type { Question, ExamState, ExamResult } from './types';
 
@@ -43,7 +43,7 @@ export default function ExamPage({ questions: examQuestions, state, setState, on
   }, [state, examQuestions, onFinish, setState]);
 
   useEffect(() => {
-    if (state.isFinished) return;
+    if (state.isFinished || state.isPaused) return;
     const timer = setInterval(() => {
       setState(prev => {
         if (prev.timeRemaining <= 0) {
@@ -54,7 +54,7 @@ export default function ExamPage({ questions: examQuestions, state, setState, on
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [state.isFinished, setState]);
+  }, [state.isFinished, state.isPaused, setState]);
 
   useEffect(() => {
     if (state.timeRemaining <= 0 && !state.isFinished) {
@@ -73,6 +73,10 @@ export default function ExamPage({ questions: examQuestions, state, setState, on
     const newBookmarks = [...state.bookmarks];
     newBookmarks[state.currentQuestion] = !newBookmarks[state.currentQuestion];
     setState({ ...state, bookmarks: newBookmarks });
+  };
+
+  const handleTogglePause = () => {
+    setState(prev => ({ ...prev, isPaused: !prev.isPaused }));
   };
 
   const formatTime = (seconds: number) => {
@@ -99,6 +103,11 @@ export default function ExamPage({ questions: examQuestions, state, setState, on
               <span className="text-sm text-slate-400">{state.currentQuestion + 1} / {examQuestions.length}</span>
             </div>
             <div className="flex items-center gap-3">
+              <button onClick={handleTogglePause}
+                className="px-3 py-1.5 bg-gold/20 hover:bg-gold/40 rounded-lg text-sm text-gold font-medium flex items-center gap-2 transition-colors">
+                <Pause className="w-4 h-4" />
+                <span className="hidden sm:inline">Pausar</span>
+              </button>
               <button onClick={() => setShowNav(!showNav)}
                 className="px-3 py-1.5 bg-navy-800 hover:bg-navy-700 rounded-lg text-sm text-white flex items-center gap-2 transition-colors">
                 <Grid3X3 className="w-4 h-4" />
@@ -231,6 +240,26 @@ export default function ExamPage({ questions: examQuestions, state, setState, on
                 <button onClick={() => setShowConfirm(false)} className="flex-1 py-3 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors">Continuar</button>
                 <button onClick={handleFinish} className="flex-1 py-3 bg-danger hover:bg-red-600 text-white font-semibold rounded-lg transition-colors">Finalizar</button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    <AnimatePresence>
+        {state.isPaused && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="glass rounded-2xl p-8 w-full max-w-md text-center">
+              <div className="w-16 h-16 rounded-full bg-gold/20 flex items-center justify-center mx-auto mb-4">
+                <Pause className="w-8 h-8 text-gold" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Examen en Pausa</h3>
+              <p className="text-slate-400 mb-2">Tu progreso se ha guardado.</p>
+              <p className="text-xs text-slate-500 mb-6">Puedes cerrar la pantalla y continuar cuando vuelvas.</p>
+              <button onClick={handleTogglePause}
+                className="w-full py-3 bg-tactical-blue hover:bg-tactical-blue-dark text-white font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors">
+                <Play className="w-5 h-5" /> Continuar Examen
+              </button>
             </motion.div>
           </motion.div>
         )}

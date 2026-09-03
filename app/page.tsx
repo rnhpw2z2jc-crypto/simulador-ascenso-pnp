@@ -50,6 +50,9 @@ export default function Home() {
   const { questions, loading: questionsLoading } = useQuestions();
   const [sessionExpired, setSessionExpired] = useState(false);
   const userRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [pausedExam, setPausedExam] = useState<{ state: ExamState; questions: Question[] } | null>(null);
+
+  const EXAM_STORAGE_KEY = 'simulador_paused_exam';
 
   const handleSessionTimeout = useCallback(() => {
     setSessionExpired(true);
@@ -67,12 +70,40 @@ export default function Home() {
   useEffect(() => {
     seedDefaultAdmin().catch(() => {});
     migrateDeviceFields().catch(() => {});
+    const savedExams = localStorage.getItem(EXAM_STORAGE_KEY);
+    if (savedExams) {
+      try {
+        const parsed = JSON.parse(savedExams) as { state: ExamState; questions: Question[] };
+        if (parsed.state && !parsed.state.isFinished && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+          setPausedExam(parsed);
+        } else {
+          localStorage.removeItem(EXAM_STORAGE_KEY);
+        }
+      } catch {
+        localStorage.removeItem(EXAM_STORAGE_KEY);
+      }
+    }
     const savedUser = localStorage.getItem('simulador_user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
       setCurrentPage('dashboard');
     }
   }, []);
+
+  useEffect(() => {
+    if (!examState) {
+      localStorage.removeItem(EXAM_STORAGE_KEY);
+      setPausedExam(null);
+      return;
+    }
+    if (examState.isFinished) {
+      localStorage.removeItem(EXAM_STORAGE_KEY);
+      setPausedExam(null);
+      return;
+    }
+    localStorage.setItem(EXAM_STORAGE_KEY, JSON.stringify({ state: examState, questions: examQuestions }));
+    setPausedExam(examState.isPaused ? { state: examState, questions: examQuestions } : null);
+  }, [examState, examQuestions]);
 
   useEffect(() => {
     if (user && !sessionExpired) {
@@ -147,6 +178,8 @@ export default function Home() {
   };
 
   const beginExam = (qs: Question[], timeLimit: number) => {
+    localStorage.removeItem(EXAM_STORAGE_KEY);
+    setPausedExam(null);
     setExamQuestions(qs);
     setExamState({
       currentQuestion: 0,
@@ -155,7 +188,15 @@ export default function Home() {
       timeRemaining: timeLimit,
       startTime: Date.now(),
       isFinished: false,
+      isPaused: false,
     });
+    setCurrentPage('exam');
+  };
+
+  const resumeExam = () => {
+    if (!pausedExam) return;
+    setExamQuestions(pausedExam.questions);
+    setExamState(pausedExam.state);
     setCurrentPage('exam');
   };
 
@@ -234,6 +275,8 @@ export default function Home() {
             onRefreshUser={refreshUserData}
             onStartExam={startExam}
             onStartReinforcement={startReinforcement}
+            pausedExam={pausedExam}
+            onResumeExam={resumeExam}
             onViewHistory={() => setCurrentPage('history')}
             onGoAnalytics={() => setCurrentPage('analytics')}
             onLogout={handleLogout}

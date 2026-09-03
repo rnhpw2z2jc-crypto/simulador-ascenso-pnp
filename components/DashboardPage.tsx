@@ -8,9 +8,9 @@ import {
   BarChart3, Brain, Download, AlertTriangle, TrendingUp 
 } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
-import type { User as UserType, ExamConfig, ExamResult, Question } from './types';
+import type { User as UserType, ExamConfig, ExamResult, Question, ExamState } from './types';
 
-export default function DashboardPage({ user, questions, onRefreshUser, onStartExam, onStartReinforcement, onViewHistory, onGoAnalytics, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate }: {
+export default function DashboardPage({ user, questions, onRefreshUser, onStartExam, onStartReinforcement, onViewHistory, onGoAnalytics, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate, pausedExam, onResumeExam }: {
   user: UserType;
   questions: Question[];
   onRefreshUser: (username: string) => Promise<void>;
@@ -25,6 +25,8 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
   onInstall: () => void;
   hasUpdate: boolean;
   onApplyUpdate: () => void;
+  pausedExam: { state: ExamState; questions: Question[] } | null;
+  onResumeExam: () => void;
 }) {
   const [selectedQuestions, setSelectedQuestions] = useState(50);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['all']);
@@ -157,6 +159,24 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
             }
             return null;
           })()}
+
+          {pausedExam && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className="mt-4 p-4 bg-gold/20 border border-gold/50 rounded-xl flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gold/30 flex items-center justify-center flex-shrink-0">
+                  <Clock className="w-5 h-5 text-gold" />
+                </div>
+                <div>
+                  <p className="text-gold font-semibold text-sm">Examen en pausa</p>
+                  <p className="text-xs text-slate-400">Tienes un examen sin terminar ({pausedExam.questions.length} preguntas). Continualo cuando quieras.</p>
+                </div>
+              </div>
+              <button onClick={onResumeExam} className="px-4 py-2 bg-gold hover:bg-gold/80 text-navy-900 text-sm font-medium rounded-lg transition-colors flex-shrink-0">
+                Continuar
+              </button>
+            </motion.div>
+          )}
 
           {hasUpdate && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}

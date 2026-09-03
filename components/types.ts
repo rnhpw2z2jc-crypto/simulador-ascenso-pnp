@@ -35,6 +35,7 @@ export interface ExamState {
   timeRemaining: number;
   startTime: number;
   isFinished: boolean;
+  isPaused: boolean;
 }
 
 export interface ExamResult {
