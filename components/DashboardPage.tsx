@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { 
   Shield, Settings, User, LogOut, FileText, Target, Trophy, Clock, 
   Hash, BookMarked, Zap, BookOpen, Award, Check, Play, ArrowRight, 
-  BarChart3, Brain, Download, AlertTriangle, TrendingUp, Compass 
+  BarChart3, Brain, Download, AlertTriangle, TrendingUp 
 } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
 import type { User as UserType, ExamConfig, ExamResult, Question, ExamState } from './types';
@@ -376,53 +376,43 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.33 }}
           className="mb-8">
           <div className="glass rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-tactical-blue/25 flex items-center justify-center">
-                  <span className="text-2xl">🔭</span>
-                </div>
-                <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-white">RECONOCIMIENTO TACTICO</h2>
-                  <p className="text-xs text-slate-400">Selecciona el tema o norma legal a repasar</p>
-                </div>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-11 h-11 rounded-xl bg-tactical-blue/25 flex items-center justify-center">
+                <span className="text-2xl">🔭</span>
               </div>
-              <span className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-tactical-blue/20 border border-tactical-blue/40 text-tactical-blue-light text-sm font-medium rounded-lg">
-                <Compass className="w-4 h-4" /> {recognitionCategory ? getCategoryDisplayName(getCategoryKey(recognitionCategory)) : 'Todos'} · {recognitionCategory
-                  ? questions.filter(q => q.category === recognitionCategory).length
-                  : questions.length} preguntas
-              </span>
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-white">RECONOCIMIENTO TACTICO</h2>
+                <p className="text-xs text-slate-400">Selecciona el tema o norma legal a repasar</p>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <button onClick={() => setRecognitionCategory(null)}
-                className={`p-4 rounded-xl border-2 text-left transition-all duration-300 ${
+                className={`p-3 rounded-xl border text-left transition-all duration-300 group ${
                   recognitionCategory === null
-                    ? 'border-tactical-blue bg-tactical-blue/20 shadow-lg shadow-tactical-blue/20'
-                    : 'border-navy-700 bg-navy-800/50 hover:border-navy-500 hover:bg-navy-800'
+                    ? 'border-tactical-blue bg-tactical-blue/15'
+                    : 'border-navy-700 bg-navy-800/50 hover:border-tactical-blue hover:bg-tactical-blue/5'
                 }`}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="w-9 h-9 rounded-lg bg-gradient-to-br from-tactical-blue to-tactical-blue-dark flex items-center justify-center text-lg">📚</span>
-                  {recognitionCategory === null && <Check className="w-5 h-5 text-tactical-blue-light" />}
-                </div>
-                <p className="font-semibold text-white text-sm leading-tight">Todos los Temas</p>
-                <p className="text-xs text-slate-400 mt-1">{questions.length} preguntas</p>
+                <span className={`text-sm font-medium block ${recognitionCategory === null ? 'text-tactical-blue-light' : 'text-white group-hover:text-tactical-blue-light'}`}>
+                  📚 {recognitionCategory === null && <Check className="w-3.5 h-3.5 inline ml-1" />} Todos los Temas
+                </span>
+                <span className="text-xs text-slate-500">{questions.length} preguntas</span>
               </button>
               {availableCategories.map((cat) => {
                 const count = questions.filter(q => q.category === cat).length;
                 const isActive = recognitionCategory === cat;
                 return (
-                  <button key={cat} onClick={() => setRecognitionCategory(cat)}
-                    className={`p-4 rounded-xl border-2 text-left transition-all duration-300 ${
+                  <button key={cat}
+                    onClick={() => setRecognitionCategory(cat)}
+                    className={`p-3 rounded-xl border text-left transition-all duration-300 group ${
                       isActive
-                        ? 'border-tactical-blue bg-tactical-blue/20 shadow-lg shadow-tactical-blue/20'
-                        : 'border-navy-700 bg-navy-800/50 hover:border-navy-500 hover:bg-navy-800'
+                        ? 'border-tactical-blue bg-tactical-blue/15'
+                        : 'border-navy-700 bg-navy-800/50 hover:border-tactical-blue hover:bg-tactical-blue/5'
                     }`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="w-9 h-9 rounded-lg bg-gold/20 flex items-center justify-center text-lg">⚖️</span>
-                      {isActive && <Check className="w-5 h-5 text-tactical-blue-light" />}
-                    </div>
-                    <p className="font-semibold text-white text-sm leading-tight">{getCategoryDisplayName(getCategoryKey(cat))}</p>
-                    <p className="text-xs text-slate-400 mt-1">{count} preguntas</p>
+                    <span className={`text-sm font-medium block ${isActive ? 'text-tactical-blue-light' : 'text-white group-hover:text-tactical-blue-light'}`}>
+                      ⚖️ {isActive && <Check className="w-3.5 h-3.5 inline ml-1" />} {getCategoryDisplayName(getCategoryKey(cat))}
+                    </span>
+                    <span className="text-xs text-slate-500">{count} preguntas</span>
                   </button>
                 );
               })}
