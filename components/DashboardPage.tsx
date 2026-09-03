@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { 
   Shield, Settings, User, LogOut, FileText, Target, Trophy, Clock, 
   Hash, BookMarked, Zap, BookOpen, Award, Check, Play, ArrowRight, 
-  BarChart3, Brain, Download, AlertTriangle, TrendingUp 
+  BarChart3, Brain, Download, AlertTriangle, TrendingUp, Compass 
 } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
 import type { User as UserType, ExamConfig, ExamResult, Question, ExamState } from './types';
@@ -375,35 +375,65 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
 
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.33 }}
           className="mb-8">
-          <div className="glass rounded-xl p-4 mb-3">
-            <p className="text-sm text-slate-300 mb-3 flex items-center gap-2">
-              <span className="text-base">🔭</span> Elige el tema para tu reconocimiento tactico:
-            </p>
-            <div className="flex flex-wrap gap-2">
+          <div className="glass rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-tactical-blue/25 flex items-center justify-center">
+                  <span className="text-2xl">🔭</span>
+                </div>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold text-white">RECONOCIMIENTO TACTICO</h2>
+                  <p className="text-xs text-slate-400">Selecciona el tema o norma legal a repasar</p>
+                </div>
+              </div>
+              <span className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-tactical-blue/20 border border-tactical-blue/40 text-tactical-blue-light text-sm font-medium rounded-lg">
+                <Compass className="w-4 h-4" /> {recognitionCategory ? getCategoryDisplayName(getCategoryKey(recognitionCategory)) : 'Todos'} · {recognitionCategory
+                  ? questions.filter(q => q.category === recognitionCategory).length
+                  : questions.length} preguntas
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <button onClick={() => setRecognitionCategory(null)}
-                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-                  recognitionCategory === null ? 'border-tactical-blue bg-tactical-blue/30 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+                className={`p-4 rounded-xl border-2 text-left transition-all duration-300 ${
+                  recognitionCategory === null
+                    ? 'border-tactical-blue bg-tactical-blue/20 shadow-lg shadow-tactical-blue/20'
+                    : 'border-navy-700 bg-navy-800/50 hover:border-navy-500 hover:bg-navy-800'
                 }`}>
-                Todos ({questions.length})
+                <div className="flex items-center justify-between mb-2">
+                  <span className="w-9 h-9 rounded-lg bg-gradient-to-br from-tactical-blue to-tactical-blue-dark flex items-center justify-center text-lg">📚</span>
+                  {recognitionCategory === null && <Check className="w-5 h-5 text-tactical-blue-light" />}
+                </div>
+                <p className="font-semibold text-white text-sm leading-tight">Todos los Temas</p>
+                <p className="text-xs text-slate-400 mt-1">{questions.length} preguntas</p>
               </button>
               {availableCategories.map((cat) => {
                 const count = questions.filter(q => q.category === cat).length;
+                const isActive = recognitionCategory === cat;
                 return (
                   <button key={cat} onClick={() => setRecognitionCategory(cat)}
-                    className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-                      recognitionCategory === cat ? 'border-tactical-blue bg-tactical-blue/30 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+                    className={`p-4 rounded-xl border-2 text-left transition-all duration-300 ${
+                      isActive
+                        ? 'border-tactical-blue bg-tactical-blue/20 shadow-lg shadow-tactical-blue/20'
+                        : 'border-navy-700 bg-navy-800/50 hover:border-navy-500 hover:bg-navy-800'
                     }`}>
-                    {getCategoryDisplayName(getCategoryKey(cat))} ({count})
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="w-9 h-9 rounded-lg bg-gold/20 flex items-center justify-center text-lg">⚖️</span>
+                      {isActive && <Check className="w-5 h-5 text-tactical-blue-light" />}
+                    </div>
+                    <p className="font-semibold text-white text-sm leading-tight">{getCategoryDisplayName(getCategoryKey(cat))}</p>
+                    <p className="text-xs text-slate-400 mt-1">{count} preguntas</p>
                   </button>
                 );
               })}
             </div>
           </div>
+
           <button onClick={() => onStartRecognition(recognitionCategory)}
             disabled={questions.length === 0}
-            className="w-full py-4 bg-gradient-to-r from-tactical-blue to-tactical-blue-dark hover:opacity-90 border border-tactical-blue-light/40 text-white font-bold text-lg rounded-xl transition-all duration-300 btn-glow flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+            className="mt-4 w-full py-4 bg-gradient-to-r from-tactical-blue to-tactical-blue-dark hover:opacity-90 border border-tactical-blue-light/40 text-white font-bold text-lg rounded-xl transition-all duration-300 btn-glow flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
             <span className="text-2xl">🔭</span>
-            RECONOCIMIENTO TACTICO
+            INICIAR RECONOCIMIENTO
             <ArrowRight className="w-5 h-5" />
           </button>
           <p className="text-xs text-slate-500 text-center mt-2">
