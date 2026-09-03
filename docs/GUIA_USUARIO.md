@@ -100,9 +100,35 @@ Menú desplegable en el Dashboard:
 
 ## 📱 Experiencia Móvil
 
-- **Instalar la app** como PWA: botón "Instalar App" en el Dashboard (si tu navegador lo permite).
-- Se descarga como app real en el celular.
-- **Actualizaciones**: si hay una nueva versión, verás el banner "Actualización disponible → Actualizar".
+El Simulador es una **PWA** (App Web Progresiva), por lo que se instala como una **app real** en tu celular.
+
+### 📱 Instalación en iOS (iPhone / iPad)
+
+1. Abre **Safari** (iOS solo permite instalar desde Safari).
+2. Ve a la dirección del simulador.
+3. Toca el botón **Compartir** 📤 (el cuadrado con la flecha hacia arriba ↗️ en la barra inferior de Safari).
+4. Desliza hacia abajo en el menú de opciones.
+5. Toca **"Añadir a pantalla de inicio"**.
+6. Confirma el nombre e imagen y toca **"Añadir"**.
+7. ✅ El icono aparece en tu pantalla de inicio como una app normal.
+
+> Cierra el icono de la pantalla de inicio, no el acceso de Safari, para que abre a pantalla completa.
+
+### 🤖 Instalación en Android
+
+1. Abre **Chrome** en tu teléfono.
+2. Ve a la dirección del simulador.
+3. Toca el **menú ⋮** (tres puntos, esquina superior derecha).
+4. Toca **"Añadir a pantalla de inicio"**.
+5. Confirma y toca **"Añadir"**.
+6. ✅ El icono aparece en tu pantalla de inicio.
+
+> En muchos casos Chrome pregunta automáticamente **"¿Instalar app?"** — toca *Instalar*. También puedes hacerlo desde el menú **⋮ → Instalar app**.
+
+### Notas generales
+- Al instalarla como app se abre **a pantalla completa** sin la barra del navegador.
+- **Actualizaciones automáticas**: cada vez que la abres carga la versión más reciente.
+- Un botón **"Instalar App"** también aparece dentro del Dashboard cuando tu navegador lo permite.
 
 ---
 
