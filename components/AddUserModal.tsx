@@ -23,7 +23,13 @@ export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; 
       return;
     }
     const hashedPassword = await hashPassword(form.password);
-    const expiry = form.membershipHours ? new Date(Date.now() + Number(form.membershipHours) * 3600000).toISOString() : null;
+    let expiry: string | null = null;
+    if (form.membershipHours === 'eoy') {
+      const endOfYear = new Date(new Date().getFullYear(), 11, 31, 23, 59, 59);
+      expiry = endOfYear.toISOString();
+    } else if (form.membershipHours) {
+      expiry = new Date(Date.now() + Number(form.membershipHours) * 3600000).toISOString();
+    }
     onAdd({
       id: Date.now().toString(),
       username: form.username,
@@ -92,8 +98,14 @@ export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; 
                   {o.label}
                 </button>
               ))}
+              <button type="button" onClick={() => setForm({...form, membershipHours: form.membershipHours === 'eoy' ? '' : 'eoy'})}
+                className={`py-1.5 text-xs rounded-lg border transition-colors ${
+                  form.membershipHours === 'eoy' ? 'border-gold bg-gold/20 text-gold' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+                }`}>
+                31 dic
+              </button>
             </div>
-            <p className="text-xs text-slate-600 mt-1">12h = prueba. Sin seleccion = ilimitado</p>
+            <p className="text-xs text-slate-600 mt-1">12h = prueba. 31 dic = hasta el {new Date().getFullYear()}-12-31. Sin seleccion = ilimitado</p>
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors">Cancelar</button>

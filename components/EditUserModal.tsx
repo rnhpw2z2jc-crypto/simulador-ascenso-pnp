@@ -14,9 +14,15 @@ export default function EditUserModal({ user, onClose, onSave }: { user: User; o
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nombre || !form.apellido) return;
-    const expiry = form.membershipHours
-      ? new Date(Date.now() + Number(form.membershipHours) * 3600000).toISOString()
-      : user.membershipExpiry;
+    let expiry: string | null;
+    if (form.membershipHours === 'eoy') {
+      const endOfYear = new Date(new Date().getFullYear(), 11, 31, 23, 59, 59);
+      expiry = endOfYear.toISOString();
+    } else if (form.membershipHours) {
+      expiry = new Date(Date.now() + Number(form.membershipHours) * 3600000).toISOString();
+    } else {
+      expiry = user.membershipExpiry;
+    }
     const updatedPassword = form.password ? await hashPassword(form.password) : user.password;
     onSave({
       ...user,
@@ -31,6 +37,10 @@ export default function EditUserModal({ user, onClose, onSave }: { user: User; o
   const timeLeft = currentExpiry ? Math.max(0, new Date(currentExpiry).getTime() - Date.now()) : null;
   const daysLeft = timeLeft !== null ? Math.floor(timeLeft / 86400000) : null;
   const hoursLeft = timeLeft !== null ? Math.floor((timeLeft % 86400000) / 3600000) : null;
+  const currentIsEndOfYear = currentExpiry
+    ? form.membershipHours === 'eoy' ||
+      (new Date(currentExpiry).getMonth() === 11 && new Date(currentExpiry).getDate() === 31 && new Date(currentExpiry).getFullYear() >= new Date().getFullYear())
+    : false;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -89,8 +99,14 @@ export default function EditUserModal({ user, onClose, onSave }: { user: User; o
                   {o.label}
                 </button>
               ))}
+              <button type="button" onClick={() => setForm({...form, membershipHours: form.membershipHours === 'eoy' ? '' : 'eoy'})}
+                className={`py-1.5 text-xs rounded-lg border transition-colors ${
+                  form.membershipHours === 'eoy' || currentIsEndOfYear ? 'border-gold bg-gold/20 text-gold' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+                }`}>
+                31 dic
+              </button>
             </div>
-            <p className="text-xs text-slate-600 mt-1">12h = periodo de prueba. Sin seleccion = mantener actual</p>
+            <p className="text-xs text-slate-600 mt-1">12h = periodo de prueba. 31 dic = hasta el {new Date().getFullYear()}-12-31. Sin seleccion = mantener actual</p>
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors">Cancelar</button>
