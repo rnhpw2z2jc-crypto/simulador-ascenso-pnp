@@ -22,6 +22,7 @@ const HistoryPage = dynamic(() => import('../components/HistoryPage'), { ssr: fa
 const AdminPage = dynamic(() => import('../components/AdminPage'), { ssr: false });
 const ProfilePage = dynamic(() => import('../components/ProfilePage'), { ssr: false });
 const AnalyticsPage = dynamic(() => import('../components/AnalyticsPage'), { ssr: false });
+const RecognitionPage = dynamic(() => import('../components/RecognitionPage'), { ssr: false });
 
 function SplashLoader() {
   return (
@@ -40,12 +41,13 @@ function SplashLoader() {
 }
 
 export default function Home() {
-  const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'dashboard' | 'config' | 'exam' | 'results' | 'history' | 'admin' | 'profile' | 'analytics'>('login');
+  const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'dashboard' | 'config' | 'exam' | 'results' | 'history' | 'admin' | 'profile' | 'analytics' | 'recognition'>('login');
   const [user, setUser] = useState<User | null>(null);
   const [examConfig, setExamConfig] = useState<ExamConfig | null>(null);
   const [examState, setExamState] = useState<ExamState | null>(null);
   const [currentResult, setCurrentResult] = useState<ExamResult | null>(null);
   const [examQuestions, setExamQuestions] = useState<Question[]>([]);
+  const [recognitionQuestions, setRecognitionQuestions] = useState<Question[]>([]);
   const { isInstallable, install, hasUpdate, applyUpdate } = usePWA();
   const { questions, loading: questionsLoading } = useQuestions();
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -65,7 +67,7 @@ export default function Home() {
     }, 3000);
   }, []);
 
-  useSessionTimeout(!!user && !sessionExpired, handleSessionTimeout);
+  useSessionTimeout(!!user && !sessionExpired, handleSessionTimeout, !!examState?.isPaused);
 
   useEffect(() => {
     seedDefaultAdmin().catch(() => {});
@@ -193,6 +195,14 @@ export default function Home() {
     setCurrentPage('exam');
   };
 
+  const startRecognition = (category: string | null) => {
+    const filtered = category
+      ? questions.filter(q => q.category === category)
+      : questions;
+    setRecognitionQuestions(filtered);
+    setCurrentPage('recognition');
+  };
+
   const resumeExam = () => {
     if (!pausedExam) return;
     setExamQuestions(pausedExam.questions);
@@ -275,6 +285,7 @@ export default function Home() {
             onRefreshUser={refreshUserData}
             onStartExam={startExam}
             onStartReinforcement={startReinforcement}
+            onStartRecognition={startRecognition}
             pausedExam={pausedExam}
             onResumeExam={resumeExam}
             onViewHistory={() => setCurrentPage('history')}
@@ -304,6 +315,13 @@ export default function Home() {
             state={examState}
             setState={setExamState as React.Dispatch<React.SetStateAction<ExamState>>}
             onFinish={finishExam}
+          />
+        )}
+        {currentPage === 'recognition' && (
+          <RecognitionPage
+            key="recognition"
+            questions={recognitionQuestions}
+            onBack={() => setCurrentPage('dashboard')}
           />
         )}
         {currentPage === 'results' && currentResult && (

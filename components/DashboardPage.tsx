@@ -10,12 +10,13 @@ import {
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
 import type { User as UserType, ExamConfig, ExamResult, Question, ExamState } from './types';
 
-export default function DashboardPage({ user, questions, onRefreshUser, onStartExam, onStartReinforcement, onViewHistory, onGoAnalytics, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate, pausedExam, onResumeExam }: {
+export default function DashboardPage({ user, questions, onRefreshUser, onStartExam, onStartReinforcement, onStartRecognition, onViewHistory, onGoAnalytics, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate, pausedExam, onResumeExam }: {
   user: UserType;
   questions: Question[];
   onRefreshUser: (username: string) => Promise<void>;
   onStartExam: (config: ExamConfig) => void;
   onStartReinforcement: () => boolean;
+  onStartRecognition: (category: string | null) => void;
   onViewHistory: () => void;
   onGoAnalytics: () => void;
   onLogout: () => void;
@@ -31,6 +32,7 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
   const [selectedQuestions, setSelectedQuestions] = useState(50);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['all']);
   const [failedCount, setFailedCount] = useState(0);
+  const [recognitionCategory, setRecognitionCategory] = useState<string | null>(null);
 
   useEffect(() => {
     const failedIds: number[] = JSON.parse(localStorage.getItem('simulador_failed_ids') || '[]');
@@ -362,7 +364,7 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
             }}
               className="w-full py-4 bg-gradient-to-r from-warning/20 to-gold/20 hover:from-warning/30 hover:to-gold/30 border border-warning/50 text-white font-bold text-lg rounded-xl transition-all duration-300 flex items-center justify-center gap-3">
               <Brain className="w-6 h-6 text-gold" />
-              REFORZAMIENTO TACTICO 💪🧠
+              REFORZAMIENTO TACTICO 🔁🔥🧠
               <span className="px-3 py-1 bg-danger/30 text-danger text-sm font-bold rounded-full">{failedCount}</span>
             </button>
             <p className="text-xs text-slate-500 text-center mt-2">
@@ -370,6 +372,44 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
             </p>
           </motion.div>
         )}
+
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.33 }}
+          className="mb-8">
+          <div className="glass rounded-xl p-4 mb-3">
+            <p className="text-sm text-slate-300 mb-3 flex items-center gap-2">
+              <span className="text-base">🔭</span> Elige el tema para tu reconocimiento tactico:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => setRecognitionCategory(null)}
+                className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                  recognitionCategory === null ? 'border-tactical-blue bg-tactical-blue/30 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+                }`}>
+                Todos ({questions.length})
+              </button>
+              {availableCategories.map((cat) => {
+                const count = questions.filter(q => q.category === cat).length;
+                return (
+                  <button key={cat} onClick={() => setRecognitionCategory(cat)}
+                    className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                      recognitionCategory === cat ? 'border-tactical-blue bg-tactical-blue/30 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+                    }`}>
+                    {getCategoryDisplayName(getCategoryKey(cat))} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <button onClick={() => onStartRecognition(recognitionCategory)}
+            disabled={questions.length === 0}
+            className="w-full py-4 bg-gradient-to-r from-tactical-blue to-tactical-blue-dark hover:opacity-90 border border-tactical-blue-light/40 text-white font-bold text-lg rounded-xl transition-all duration-300 btn-glow flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+            <span className="text-2xl">🔭</span>
+            RECONOCIMIENTO TACTICO
+            <ArrowRight className="w-5 h-5" />
+          </button>
+          <p className="text-xs text-slate-500 text-center mt-2">
+            Revisa y responde por tema o norma, sin presion de tiempo, con retroalimentacion inmediata
+          </p>
+        </motion.div>
 
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.35 }}>
           <div className="glass rounded-xl p-6">
