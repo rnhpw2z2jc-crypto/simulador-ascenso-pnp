@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Settings, Users, FileText, Target, Search, Home as HomeIcon, 
-  Loader2, User 
+  Loader2, User, Info 
 } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
 import { seedDefaultAdmin, getAllUsers, createUser, updateUser, deleteUser } from '../lib/users';
@@ -319,6 +319,13 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
           </div>
         </div>
 
+        <div className="mb-4 p-3 bg-tactical-blue/10 border border-tactical-blue/30 rounded-lg flex items-start gap-3">
+          <Info className="w-5 h-5 text-tactical-blue-light flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-slate-300 leading-relaxed">
+            <span className="font-semibold text-white">Nota:</span> un usuario puede figurar en el "Registro de Accesos" como logueado aunque aqui aparezca "Sin vincular". El registro cuenta todos los intentos, incluso los bloqueados. Solo se <span className="text-gold font-medium">vincula un dispositivo</span> cuando el login es exitoso desde un equipo nuevo. Si superan el limite, libera los dispositivos (boton "Liberar") para que puedan re-vincular.
+          </p>
+        </div>
+
         <div className="space-y-3">
           {paginatedUsers.map(u => {
             const expired = isExpired(u);
@@ -451,6 +458,12 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
               <button onClick={loadLogs} className="px-3 py-1.5 bg-navy-700 hover:bg-navy-600 text-xs text-white rounded-lg transition-colors">
                 Actualizar
               </button>
+            </div>
+            <div className="mb-4 p-3 bg-warning/10 border border-warning/30 rounded-lg flex items-start gap-3">
+              <Info className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Este registro incluye <span className="font-bold text-warning">todos los intentos</span>, exitosos (estado "allowed") y bloqueados (estado "blocked"). Un intento bloqueado NO vincula dispositivo. Consulta la pestaña <span className="text-tactical-blue-light font-medium">Usuarios</span> para ver los dispositivos realmente vinculados.
+              </p>
             </div>
             {logsLoading ? (
               <div className="glass rounded-xl p-8 text-center">
