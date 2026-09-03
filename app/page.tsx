@@ -206,7 +206,7 @@ export default function Home() {
   const resumeExam = () => {
     if (!pausedExam) return;
     setExamQuestions(pausedExam.questions);
-    setExamState(pausedExam.state);
+    setExamState({ ...pausedExam.state, isPaused: false });
     setCurrentPage('exam');
   };
 
@@ -315,6 +315,10 @@ export default function Home() {
             state={examState}
             setState={setExamState as React.Dispatch<React.SetStateAction<ExamState>>}
             onFinish={finishExam}
+            onExit={() => {
+              setExamState(prev => prev ? { ...prev, isPaused: true } : prev);
+              setCurrentPage('dashboard');
+            }}
           />
         )}
         {currentPage === 'recognition' && (

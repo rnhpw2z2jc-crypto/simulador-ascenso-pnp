@@ -2,18 +2,20 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Grid3X3, Flag, AlertTriangle, ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
+import { Clock, Grid3X3, Flag, AlertTriangle, ChevronLeft, ChevronRight, Pause, Play, LogOut } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
 import type { Question, ExamState, ExamResult } from './types';
 
-export default function ExamPage({ questions: examQuestions, state, setState, onFinish }: {
+export default function ExamPage({ questions: examQuestions, state, setState, onFinish, onExit }: {
   questions: Question[];
   state: ExamState;
   setState: React.Dispatch<React.SetStateAction<ExamState>>;
   onFinish: (result: ExamResult) => void;
+  onExit: () => void;
 }) {
   const [showNav, setShowNav] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showExit, setShowExit] = useState(false);
 
   const currentQ = examQuestions[state.currentQuestion];
   const progress = ((state.currentQuestion + 1) / examQuestions.length) * 100;
@@ -116,6 +118,11 @@ export default function ExamPage({ questions: examQuestions, state, setState, on
               <button onClick={() => setShowConfirm(true)}
                 className="px-3 py-1.5 bg-danger hover:bg-red-600 rounded-lg text-sm text-white font-medium transition-colors">
                 Finalizar
+              </button>
+              <button onClick={() => setShowExit(true)}
+                className="px-3 py-1.5 bg-navy-800 hover:bg-navy-700 rounded-lg text-sm text-white flex items-center gap-2 transition-colors">
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Guardar y salir</span>
               </button>
             </div>
           </div>
@@ -245,6 +252,29 @@ export default function ExamPage({ questions: examQuestions, state, setState, on
         )}
       </AnimatePresence>
     <AnimatePresence>
+        {showExit && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="glass rounded-2xl p-6 w-full max-w-md text-center">
+              <div className="w-16 h-16 rounded-full bg-gold/20 flex items-center justify-center mx-auto mb-4">
+                <LogOut className="w-8 h-8 text-gold" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">¿Guardar y salir?</h3>
+              <p className="text-slate-400 mb-6">
+                Tu examen quedara <span className="text-gold font-semibold">pendiente de continuar</span> y se guardara automaticamente.
+                Podras retomarlo desde el inicio cuando vuelvas.
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowExit(false)} className="flex-1 py-3 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors">Cancelar</button>
+                <button onClick={() => { setShowExit(false); onExit(); }} className="flex-1 py-3 bg-gold hover:bg-gold/80 text-navy-900 font-semibold rounded-lg transition-colors">Guardar y salir</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {state.isPaused && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
