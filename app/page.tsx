@@ -120,8 +120,10 @@ export default function Home() {
             if (fresh.membershipExpiry && new Date(fresh.membershipExpiry) < new Date()) {
               fresh.status = 'expired';
             }
-            setUser({ ...fresh, id: fresh.id });
-            localStorage.setItem('simulador_user', JSON.stringify({ ...fresh, id: fresh.id }));
+            const { password: _, ...safeFresh } = fresh as unknown as Record<string, unknown>;
+            const userData = { ...safeFresh, id: fresh.id } as unknown as User;
+            setUser(userData);
+            localStorage.setItem('simulador_user', JSON.stringify(userData));
           }
         } catch {}
       }, 60000);
@@ -130,14 +132,16 @@ export default function Home() {
   }, [user?.username, sessionExpired, handleSessionTimeout]);
 
   const handleLogin = (userData: User) => {
-    if (userData.membershipExpiry && new Date(userData.membershipExpiry) < new Date()) {
-      userData.status = 'expired';
+    const { password: _, ...safeData } = userData as unknown as Record<string, unknown>;
+    const safeUser = safeData as unknown as User;
+    if (safeUser.membershipExpiry && new Date(safeUser.membershipExpiry) < new Date()) {
+      safeUser.status = 'expired';
     }
-    if (userData.status === 'blocked') {
+    if (safeUser.status === 'blocked') {
       return;
     }
-    setUser(userData);
-    localStorage.setItem('simulador_user', JSON.stringify(userData));
+    setUser(safeUser);
+    localStorage.setItem('simulador_user', JSON.stringify(safeUser));
     setCurrentPage('dashboard');
   };
 
@@ -154,7 +158,8 @@ export default function Home() {
         if (fresh.membershipExpiry && new Date(fresh.membershipExpiry) < new Date()) {
           fresh.status = 'expired';
         }
-        const userData = { ...fresh, id: fresh.id };
+        const { password: _, ...safeFresh } = fresh as unknown as Record<string, unknown>;
+        const userData = { ...safeFresh, id: fresh.id } as unknown as User;
         setUser(userData);
         localStorage.setItem('simulador_user', JSON.stringify(userData));
       }
@@ -273,7 +278,6 @@ export default function Home() {
         {currentPage === 'register' && (
           <RegisterPage 
             key="register"
-            onRegister={handleLogin} 
             onBack={() => setCurrentPage('login')} 
           />
         )}
@@ -361,7 +365,12 @@ export default function Home() {
           <ProfilePage 
             key="profile"
             user={user}
-            onUpdate={(updated) => { setUser(updated); localStorage.setItem('simulador_user', JSON.stringify(updated)); }}
+            onUpdate={(updated) => {
+              const { password: _, ...safeUpdated } = updated as unknown as Record<string, unknown>;
+              const safeUser = safeUpdated as unknown as User;
+              setUser(safeUser);
+              localStorage.setItem('simulador_user', JSON.stringify(safeUser));
+            }}
             onBack={() => setCurrentPage('dashboard')}
           />
         )}

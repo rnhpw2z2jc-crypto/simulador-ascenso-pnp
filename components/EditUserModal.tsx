@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { hashPassword } from '../lib/password';
 import type { User } from './types';
 
-export default function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => void; onSave: (u: User) => void }) {
+export default function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => void; onSave: (u: User, newPassword?: string) => void }) {
   const [form, setForm] = useState({
     nombre: user.nombre, apellido: user.apellido, email: user.email,
     password: '', membershipHours: '' as string | number
@@ -23,13 +22,13 @@ export default function EditUserModal({ user, onClose, onSave }: { user: User; o
     } else {
       expiry = user.membershipExpiry;
     }
-    const updatedPassword = form.password ? await hashPassword(form.password) : user.password;
     onSave({
       ...user,
-      ...form,
+      nombre: form.nombre,
+      apellido: form.apellido,
+      email: form.email,
       membershipExpiry: expiry,
-      password: updatedPassword,
-    });
+    }, form.password || undefined);
   };
 
   const currentExpiry = user.membershipExpiry;

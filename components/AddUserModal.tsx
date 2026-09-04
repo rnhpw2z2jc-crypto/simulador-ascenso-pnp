@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { hashPassword } from '../lib/password';
+import { sanitizeUserInput, validateUsername, validateEmail } from '../lib/security';
 import type { User } from './types';
 
-export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User) => void }) {
+export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User, password: string) => void }) {
   const [form, setForm] = useState({
     username: '', password: '', nombre: '', apellido: '', email: '',
     membershipHours: '' as string | number
@@ -18,10 +19,22 @@ export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; 
       setError('Complete usuario, contrasena, nombre y apellido');
       return;
     }
+    const usernameError = validateUsername(form.username);
+    if (usernameError) { setError(usernameError); return; }
+    if (form.email) {
+      const emailError = validateEmail(form.email);
+      if (emailError) { setError(emailError); return; }
+    }
     if (form.password.length < 6) {
       setError('La contrasena debe tener al menos 6 caracteres');
       return;
     }
+    const clean = sanitizeUserInput({
+      username: form.username,
+      nombre: form.nombre,
+      apellido: form.apellido,
+      email: form.email,
+    });
     const hashedPassword = await hashPassword(form.password);
     let expiry: string | null = null;
     if (form.membershipHours === 'eoy') {
@@ -32,18 +45,17 @@ export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; 
     }
     onAdd({
       id: Date.now().toString(),
-      username: form.username,
-      password: hashedPassword,
-      nombre: form.nombre,
-      apellido: form.apellido,
-      email: form.email,
+      username: clean.username,
+      nombre: clean.nombre,
+      apellido: clean.apellido,
+      email: clean.email,
       role: 'user',
       membershipExpiry: expiry,
       createdAt: new Date().toISOString(),
       status: 'active',
       devices: [],
       maxDevices: 1,
-    });
+    }, hashedPassword);
   };
 
   return (

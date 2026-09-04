@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User, Home as HomeIcon } from 'lucide-react';
 import { hashPassword, verifyPassword } from '../lib/password';
-import { updateUser } from '../lib/users';
+import { getUserByUsername, updateUser } from '../lib/users';
 import type { ExamResult } from './types';
 import type { User as UserType } from './types';
 
@@ -30,13 +30,15 @@ export default function ProfilePage({ user, onUpdate, onBack }: { user: UserType
   };
 
   const handleChangePassword = async () => {
-    const passwordValid = await verifyPassword(passwordForm.current, user.password);
+    const fullUser = await getUserByUsername(user.username);
+    if (!fullUser) { setMsg('Error al obtener datos'); return; }
+    const passwordValid = await verifyPassword(passwordForm.current, fullUser.password);
     if (!passwordValid) { setMsg('Contrasena actual incorrecta'); return; }
     if (passwordForm.newPass.length < 6) { setMsg('Minimo 6 caracteres'); return; }
     if (passwordForm.newPass !== passwordForm.confirm) { setMsg('Las contrasenas no coinciden'); return; }
     const hashedPassword = await hashPassword(passwordForm.newPass);
-    const updated = { ...user, password: hashedPassword };
-    await updateUser(updated);
+    const updated = { ...user };
+    await updateUser({ ...fullUser, password: hashedPassword });
     onUpdate(updated);
     setPasswordForm({ current: '', newPass: '', confirm: '' });
     setMsg('Contrasena cambiada');

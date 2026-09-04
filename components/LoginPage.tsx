@@ -91,7 +91,8 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
             status: 'allowed',
             reason: 'Admin - acceso libre',
           });
-          onLogin(found);
+          const { password: _, ...safeFound } = found as unknown as Record<string, unknown>;
+          onLogin(safeFound as unknown as UserType);
         } else if (!found.devices.includes(currentDeviceId)) {
           const updatedUser = { ...found, devices: [...found.devices, currentDeviceId] };
           await updateUser(updatedUser);
@@ -104,7 +105,8 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
             status: 'allowed',
             reason: 'Nuevo dispositivo vinculado',
           });
-          onLogin(updatedUser);
+          const { password: _, ...safeUpdated } = updatedUser as unknown as Record<string, unknown>;
+          onLogin(safeUpdated as unknown as UserType);
         } else {
           await logAccessAttempt({
             userId: found.id,
@@ -115,7 +117,8 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
             status: 'allowed',
             reason: 'Dispositivo coincide',
           });
-          onLogin(found);
+          const { password: _, ...safeFound2 } = found as unknown as Record<string, unknown>;
+          onLogin(safeFound2 as unknown as UserType);
         }
       } else {
         const result = await recordFailedAttempt(cleanUsername);

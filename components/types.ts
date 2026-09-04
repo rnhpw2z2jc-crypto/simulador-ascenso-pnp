@@ -11,7 +11,6 @@ export interface Question {
 export interface User {
   id: string;
   username: string;
-  password: string;
   nombre: string;
   apellido: string;
   email: string;

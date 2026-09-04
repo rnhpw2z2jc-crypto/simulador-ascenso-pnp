@@ -2,7 +2,7 @@ import { db } from './firebase';
 import {
   collection, doc, getDocs, setDoc, deleteDoc, updateDoc, query, where
 } from 'firebase/firestore';
-import { hashPassword, verifyPassword } from './password';
+import { hashPassword, verifyPassword, isBcryptHash } from './password';
 
 export interface UserData {
   id: string;
@@ -38,6 +38,16 @@ export async function getAllUsers(): Promise<UserData[]> {
   return snap.docs.map(d => normalizeUser({ id: d.id, ...d.data() } as UserData));
 }
 
+export function toPublicUser(u: UserData): Omit<UserData, 'password'> {
+  const { password, ...publicUser } = u;
+  return publicUser;
+}
+
+export async function getAllUsersPublic(): Promise<Omit<UserData, 'password'>[]> {
+  const users = await getAllUsers();
+  return users.map(toPublicUser);
+}
+
 export async function getUserByUsername(username: string): Promise<UserData | null> {
   const q = query(collection(db, COLLECTION), where('username', '==', username));
   const snap = await getDocs(q);
@@ -50,7 +60,7 @@ export async function createUser(user: UserData): Promise<void> {
   await setDoc(doc(db, COLLECTION, user.id), user);
 }
 
-export async function updateUser(user: UserData): Promise<void> {
+export async function updateUser(user: Partial<UserData> & { id: string }): Promise<void> {
   const { id, ...data } = user;
   await updateDoc(doc(db, COLLECTION, id), data);
 }
@@ -89,12 +99,9 @@ export async function seedDefaultAdmin(): Promise<void> {
       devices: [],
       maxDevices: DEFAULT_MAX_DEVICES,
     });
-  } else {
-    const passwordValid = await verifyPassword(ADMIN_DEFAULT_PASSWORD, existing.password);
-    if (!passwordValid) {
-      const hashedPassword = await hashPassword(ADMIN_DEFAULT_PASSWORD);
-      await updateUser({ ...existing, password: hashedPassword });
-    }
+  } else if (!isBcryptHash(existing.password)) {
+    const hashedPassword = await hashPassword(existing.password);
+    await updateUser({ ...existing, password: hashedPassword });
   }
 }
 

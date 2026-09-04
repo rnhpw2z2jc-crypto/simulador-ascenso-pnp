@@ -7,7 +7,7 @@ import {
   Loader2, User, Info 
 } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
-import { seedDefaultAdmin, getAllUsers, createUser, updateUser, deleteUser } from '../lib/users';
+import { seedDefaultAdmin, getAllUsersPublic, createUser, updateUser, deleteUser, getUserByUsername } from '../lib/users';
 import { getAccessLogs } from '../lib/accessLog';
 import type { AccessLogEntry } from '../lib/accessLog';
 import { getExamStats } from '../lib/examStats';
@@ -49,7 +49,7 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
   const loadUsers = async () => {
     try {
       await seedDefaultAdmin();
-      const all = await getAllUsers();
+      const all = await getAllUsersPublic();
       setUsers(all);
     } catch {
       console.error('Error loading users');
@@ -78,9 +78,9 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
     setStatsLoading(false);
   };
 
-  const handleAddUser = async (u: UserType) => {
+  const handleAddUser = async (u: UserType, password: string) => {
     try {
-      await createUser(u);
+      await createUser({ ...u, password } as any);
       setUsers([...users, u]);
       setShowAdd(false);
       setMsg('Usuario creado exitosamente');
@@ -104,9 +104,23 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
     }
   };
 
-  const handleUpdateUser = async (updated: UserType) => {
+  const handleUpdateUser = async (updated: UserType, newPassword?: string) => {
     try {
-      await updateUser(updated);
+      if (newPassword) {
+        const { hashPassword } = await import('../lib/password');
+        const fullUser = await getUserByUsername(updated.username);
+        if (fullUser) {
+          const hashed = await hashPassword(newPassword);
+          await updateUser({ ...fullUser, ...updated, password: hashed });
+        } else {
+          await updateUser({ ...updated, password: '' } as any);
+        }
+      } else {
+        const fullUser = await getUserByUsername(updated.username);
+        if (fullUser) {
+          await updateUser({ ...fullUser, ...updated });
+        }
+      }
       setUsers(users.map(u => u.id === updated.id ? updated : u));
       setEditUser(null);
       setMsg('Usuario actualizado');
@@ -129,7 +143,10 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
     });
     try {
       const target = updated.find(u => u.id === id);
-      if (target) await updateUser(target);
+      if (target) {
+        const fullUser = await getUserByUsername(target.username);
+        if (fullUser) await updateUser({ ...fullUser, ...target });
+      }
       setUsers(updated);
       const label = hours !== null ? (hours < 24 ? `${hours}h` : `${hours / 24} dias`) : 'removida';
       setMsg(`Membresia ${label}`);

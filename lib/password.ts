@@ -7,12 +7,10 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
-  // Primero intentar con bcrypt (nuevas contraseñas)
-  if (storedHash.startsWith('$2')) {
-    return bcrypt.compare(password, storedHash);
+  if (!storedHash.startsWith('$2')) {
+    throw new Error('Contraseña sin hashear. Requiere migración.');
   }
-  // Contraseña en texto plano (usuarios migrados) - verificar directamente
-  return password === storedHash;
+  return bcrypt.compare(password, storedHash);
 }
 
 export function isBcryptHash(value: string): boolean {
