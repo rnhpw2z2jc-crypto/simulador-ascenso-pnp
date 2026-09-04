@@ -46,6 +46,12 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
     setCurrentPage(1);
   }, [search, subFilter, sortBy]);
 
+  useEffect(() => {
+    if (tab !== 'users') return;
+    const iv = setInterval(loadUsers, 30000);
+    return () => clearInterval(iv);
+  }, [tab]);
+
   const loadUsers = async () => {
     try {
       await seedDefaultAdmin();
@@ -231,6 +237,20 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
     return Math.max(0, Math.ceil(diff / 86400000));
   };
 
+  const isOnline = (u: UserType) => !!u.online && typeof u.lastSeen === 'number' && Date.now() - u.lastSeen < 120000;
+
+  const lastSeenLabel = (u: UserType) => {
+    if (typeof u.lastSeen !== 'number') return 'sin actividad';
+    const diff = Date.now() - u.lastSeen;
+    if (diff < 60000) return 'hace menos de un min';
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `visto hace ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    return `visto hace ${hours} h`;
+  };
+
+  const onlineCount = users.filter(isOnline).length;
+
   const filtered = users.filter(u => {
     const matchesSearch = u.username.toLowerCase().includes(search.toLowerCase()) ||
       u.nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -267,7 +287,7 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
             </div>
             <div>
               <h1 className="font-bold text-white">ADMINISTRACION</h1>
-              <p className="text-xs text-slate-400">{users.length} usuarios registrados</p>
+              <p className="text-xs text-slate-400">{users.length} usuarios · <span className="text-success">{onlineCount} en linea</span></p>
             </div>
           </div>
           <button onClick={onBack} className="px-4 py-2 bg-navy-800 hover:bg-navy-700 text-white rounded-lg flex items-center gap-2 transition-colors">
@@ -356,6 +376,10 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="font-medium text-white">{u.nombre} {u.apellido}</span>
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs rounded ${isOnline(u) ? 'bg-success/20 text-success' : 'bg-navy-700 text-slate-400'}`}>
+                        <span className={`w-2 h-2 rounded-full ${isOnline(u) ? 'bg-success animate-pulse' : 'bg-slate-500'}`} />
+                        {isOnline(u) ? 'En linea' : lastSeenLabel(u)}
+                      </span>
                       {u.role === 'admin' && <span className="px-2 py-0.5 bg-gold/20 text-gold text-xs rounded">ADMIN</span>}
                       {u.status === 'blocked' && <span className="px-2 py-0.5 bg-danger/20 text-danger text-xs rounded">BLOQUEADO</span>}
                       {expired && <span className="px-2 py-0.5 bg-warning/20 text-warning text-xs rounded">EXPIRADO</span>}

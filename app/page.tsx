@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Shield, Loader2, Clock } from 'lucide-react';
 import { usePWA } from './usePWA';
-import { seedDefaultAdmin, migrateDeviceFields, getUserByUsername } from '../lib/users';
+import { seedDefaultAdmin, migrateDeviceFields, getUserByUsername, updateUser } from '../lib/users';
 import { saveExamStat } from '../lib/examStats';
 import { useQuestions } from '../components/useQuestions';
 import { useSessionTimeout } from '../lib/useSessionTimeout';
@@ -91,6 +91,32 @@ export default function Home() {
       setCurrentPage('dashboard');
     }
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const uid = user.id;
+    const heartbeat = async () => {
+      try {
+        await updateUser({ id: uid, online: true, lastSeen: Date.now() });
+      } catch {}
+    };
+    heartbeat();
+    const iv = setInterval(heartbeat, 60000);
+    const goOffline = () => {
+      try { updateUser({ id: uid, online: false }); } catch {}
+    };
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') goOffline();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('beforeunload', goOffline);
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('beforeunload', goOffline);
+      goOffline();
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!examState) {

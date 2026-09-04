@@ -20,6 +20,8 @@ export interface User {
   status: 'active' | 'expired' | 'blocked';
   devices: string[];
   maxDevices: number;
+  online?: boolean;
+  lastSeen?: number | null;
 }
 
 export interface ExamConfig {

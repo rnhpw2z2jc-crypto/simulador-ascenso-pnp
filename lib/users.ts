@@ -17,6 +17,8 @@ export interface UserData {
   status: 'active' | 'expired' | 'blocked';
   devices: string[];
   maxDevices: number;
+  online?: boolean;
+  lastSeen?: number | null;
 }
 
 const COLLECTION = 'users';
