@@ -425,10 +425,12 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
                       {u.devices.length > 0 ? `Liberar (${u.devices.length})` : 'Sin vinc.'}
                     </button>
                     <button onClick={() => handleToggleMaxDevices(u.id)}
-                      className="px-3 py-1.5 bg-tactical-blue/10 hover:bg-tactical-blue/30 text-xs text-tactical-blue-light rounded-lg transition-colors"
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                        u.maxDevices === 2 ? 'bg-success/20 text-success hover:bg-success/40' : 'bg-tactical-blue/10 text-tactical-blue-light hover:bg-tactical-blue/30'
+                      }`}
                       title={u.maxDevices === 2 ? 'Reducir a 1 dispositivo' : 'Habilitar 2 dispositivos para este usuario'}
                     >
-                      {u.maxDevices}/2 disp.
+                      {u.maxDevices === 2 ? 'Poner 1 disp.' : 'Activar 2 disp.'}
                     </button>
                     <div className="relative">
                       <button onClick={() => setOpenMembershipId(openMembershipId === u.id ? null : u.id)}

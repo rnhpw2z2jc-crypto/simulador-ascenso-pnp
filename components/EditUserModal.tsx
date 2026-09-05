@@ -7,7 +7,8 @@ import type { User } from './types';
 export default function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => void; onSave: (u: User, newPassword?: string) => void }) {
   const [form, setForm] = useState({
     nombre: user.nombre, apellido: user.apellido, email: user.email,
-    password: '', membershipHours: '' as string | number
+    password: '', membershipHours: '' as string | number,
+    maxDevices: user.maxDevices
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,12 +23,16 @@ export default function EditUserModal({ user, onClose, onSave }: { user: User; o
     } else {
       expiry = user.membershipExpiry;
     }
+    const maxDevices = form.maxDevices;
+    const devices = maxDevices === 1 ? user.devices.slice(0, 1) : user.devices;
     onSave({
       ...user,
       nombre: form.nombre,
       apellido: form.apellido,
       email: form.email,
       membershipExpiry: expiry,
+      maxDevices,
+      devices,
     }, form.password || undefined);
   };
 
@@ -106,6 +111,26 @@ export default function EditUserModal({ user, onClose, onSave }: { user: User; o
               </button>
             </div>
             <p className="text-xs text-slate-600 mt-1">12h = periodo de prueba. 31 dic = hasta el {new Date().getFullYear()}-12-31. Sin seleccion = mantener actual</p>
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Dispositivos permitidos</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setForm({...form, maxDevices: 1})}
+                className={`py-2 text-xs rounded-lg border transition-colors ${
+                  form.maxDevices === 1 ? 'border-tactical-blue bg-tactical-blue/20 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+                }`}>
+                1 dispositivo
+              </button>
+              <button type="button" onClick={() => setForm({...form, maxDevices: 2})}
+                className={`py-2 text-xs rounded-lg border transition-colors ${
+                  form.maxDevices === 2 ? 'border-tactical-blue bg-tactical-blue/20 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+                }`}>
+                2 dispositivos
+              </button>
+            </div>
+            {form.maxDevices === 1 && user.devices.length > 1 && (
+              <p className="text-xs text-warning mt-1">Se liberara el dispositivo sobrante (quedan {user.devices.length - 1} vinculado).</p>
+            )}
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors">Cancelar</button>
