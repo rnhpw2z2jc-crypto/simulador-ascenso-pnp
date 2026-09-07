@@ -2,6 +2,8 @@
 
 ## 🔐 Acceso y Cuenta
 
+> **Dirección del simulador:** https://simulador-ascenso-pnp-gvzy.vercel.app
+
 ### Iniciar sesión / Registrarse
 - Pantalla inicial: ingresa con tu **usuario y contraseña**.
 - Si no tienes cuenta, usa **"Registrarse"**.
@@ -105,7 +107,7 @@ El Simulador es una **PWA** (App Web Progresiva), por lo que se instala como una
 ### 📱 Instalación en iOS (iPhone / iPad)
 
 1. Abre **Safari** (iOS solo permite instalar desde Safari).
-2. Ve a la dirección del simulador.
+2. Ve a la dirección del simulador (**https://simulador-ascenso-pnp-gvzy.vercel.app**).
 3. Toca el botón **Compartir** 📤 (el cuadrado con la flecha hacia arriba ↗️ en la barra inferior de Safari).
 4. Desliza hacia abajo en el menú de opciones.
 5. Toca **"Añadir a pantalla de inicio"**.
@@ -117,7 +119,7 @@ El Simulador es una **PWA** (App Web Progresiva), por lo que se instala como una
 ### 🤖 Instalación en Android
 
 1. Abre **Chrome** en tu teléfono.
-2. Ve a la dirección del simulador.
+2. Ve a la dirección del simulador (**https://simulador-ascenso-pnp-gvzy.vercel.app**).
 3. Toca el **menú ⋮** (tres puntos, esquina superior derecha).
 4. Toca **"Añadir a pantalla de inicio"**.
 5. Confirma y toca **"Añadir"**.
