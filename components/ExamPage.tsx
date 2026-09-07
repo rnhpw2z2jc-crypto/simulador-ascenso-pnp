@@ -64,6 +64,22 @@ export default function ExamPage({ questions: examQuestions, state, setState, on
     }
   }, [state.timeRemaining, state.isFinished, handleFinish]);
 
+  useEffect(() => {
+    if (state.isFinished) return;
+    const autoPause = () => {
+      setState(prev => (prev.isFinished || prev.isPaused ? prev : { ...prev, isPaused: true }));
+    };
+    const onVis = () => {
+      if (document.hidden) autoPause();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('pagehide', autoPause);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('pagehide', autoPause);
+    };
+  }, [state.isFinished, state.isPaused, setState]);
+
   const handleAnswer = (answerIndex: number) => {
     if (state.isFinished) return;
     const newAnswers = [...state.answers];
@@ -284,8 +300,8 @@ export default function ExamPage({ questions: examQuestions, state, setState, on
                 <Pause className="w-8 h-8 text-gold" />
               </div>
               <h3 className="text-xl font-bold text-white mb-2">Examen en Pausa</h3>
-              <p className="text-slate-400 mb-2">Tu progreso se ha guardado.</p>
-              <p className="text-xs text-slate-500 mb-6">Puedes cerrar la pantalla y continuar cuando vuelvas.</p>
+              <p className="text-slate-400 mb-2">El examen se pauso automaticamente cuando saliste de la aplicacion.</p>
+              <p className="text-xs text-slate-500 mb-6">Tu progreso y tiempo se guardaron. Continualo desde donde te quedaste.</p>
               <button onClick={handleTogglePause}
                 className="w-full py-3 bg-tactical-blue hover:bg-tactical-blue-dark text-white font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors">
                 <Play className="w-5 h-5" /> Continuar Examen
