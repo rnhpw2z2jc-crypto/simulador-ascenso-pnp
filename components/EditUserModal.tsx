@@ -8,6 +8,7 @@ export default function EditUserModal({ user, onClose, onSave }: { user: User; o
   const [form, setForm] = useState({
     nombre: user.nombre, apellido: user.apellido, email: user.email,
     password: '', membershipHours: '' as string | number,
+    membershipDate: '',
     maxDevices: user.maxDevices
   });
 
@@ -15,7 +16,10 @@ export default function EditUserModal({ user, onClose, onSave }: { user: User; o
     e.preventDefault();
     if (!form.nombre || !form.apellido) return;
     let expiry: string | null;
-    if (form.membershipHours === 'eoy') {
+    if (form.membershipDate) {
+      const [y, m, d] = form.membershipDate.split('-').map(Number);
+      expiry = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
+    } else if (form.membershipHours === 'eoy') {
       const endOfYear = new Date(new Date().getFullYear(), 11, 31, 23, 59, 59);
       expiry = endOfYear.toISOString();
     } else if (form.membershipHours) {
@@ -103,14 +107,26 @@ export default function EditUserModal({ user, onClose, onSave }: { user: User; o
                   {o.label}
                 </button>
               ))}
-              <button type="button" onClick={() => setForm({...form, membershipHours: form.membershipHours === 'eoy' ? '' : 'eoy'})}
+              <button type="button" onClick={() => setForm({...form, membershipHours: form.membershipHours === 'eoy' ? '' : 'eoy', membershipDate: ''})}
                 className={`py-1.5 text-xs rounded-lg border transition-colors ${
                   form.membershipHours === 'eoy' || currentIsEndOfYear ? 'border-gold bg-gold/20 text-gold' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
                 }`}>
                 31 dic
               </button>
             </div>
-            <p className="text-xs text-slate-600 mt-1">12h = periodo de prueba. 31 dic = hasta el {new Date().getFullYear()}-12-31. Sin seleccion = mantener actual</p>
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              <input type="date" value={form.membershipDate}
+                min={new Date().toISOString().slice(0, 10)}
+                onChange={e => { setForm({...form, membershipDate: e.target.value, membershipHours: e.target.value ? '' : form.membershipHours}); }}
+                className="flex-1 min-w-[140px] px-2 py-1.5 bg-navy-800 border border-navy-700 rounded-lg text-xs text-white focus:outline-none focus:border-tactical-blue" />
+              {form.membershipDate && (
+                <button type="button" onClick={() => setForm({...form, membershipDate: ''})}
+                  className="px-2.5 py-1.5 text-xs bg-navy-700 hover:bg-navy-600 text-slate-300 rounded-lg transition-colors">
+                  Limpiar
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-slate-600 mt-1">12h = periodo de prueba. 31 dic = hasta el {new Date().getFullYear()}-12-31. Fecha exacta (ej. 31 dic) = hasta el final de ese dia. Sin seleccion = mantener actual</p>
           </div>
           <div>
             <label className="block text-xs text-slate-400 mb-1">Dispositivos permitidos</label>

@@ -29,6 +29,7 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
   const [statsLoading, setStatsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [openMembershipId, setOpenMembershipId] = useState<string | null>(null);
+  const [membershipDate, setMembershipDate] = useState('');
   const [logsPage, setLogsPage] = useState(1);
   const [statsPage, setStatsPage] = useState(1);
   const [subFilter, setSubFilter] = useState<'all' | 'active' | 'expired' | 'none'>('all');
@@ -159,6 +160,30 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
       setTimeout(() => setMsg(''), 3000);
     } catch {
       setMsg('Error al actualizar membresia');
+      setTimeout(() => setMsg(''), 3000);
+    }
+  };
+
+  const handleSetMembershipToDate = async (id: string, dateStr: string) => {
+    if (!dateStr) return;
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const expiry = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
+    const updated = users.map(u => {
+      if (u.id === id) return { ...u, membershipExpiry: expiry, status: 'active' as const };
+      return u;
+    });
+    try {
+      const target = updated.find(u => u.id === id);
+      if (target) {
+        const fullUser = await getUserByUsername(target.username);
+        if (fullUser) await updateUser({ ...fullUser, ...target });
+      }
+      setUsers(updated);
+      setOpenMembershipId(null);
+      setMsg(`Membresia asignada hasta ${new Date(expiry).toLocaleDateString('es-PE')}`);
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Error al asignar fecha');
       setTimeout(() => setMsg(''), 3000);
     }
   };
@@ -433,11 +458,11 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
                       {u.maxDevices === 2 ? 'Poner 1 disp.' : 'Activar 2 disp.'}
                     </button>
                     <div className="relative">
-                      <button onClick={() => setOpenMembershipId(openMembershipId === u.id ? null : u.id)}
-                        className="px-3 py-1.5 bg-tactical-blue/20 hover:bg-tactical-blue/40 text-xs text-tactical-blue-light rounded-lg transition-colors">Membresia</button>
+                      <button onClick={() => { setOpenMembershipId(openMembershipId === u.id ? null : u.id); setMembershipDate(u.membershipExpiry ? new Date(u.membershipExpiry).toISOString().slice(0, 10) : ''); }}
+                        className={`px-3 py-1.5 bg-tactical-blue/20 hover:bg-tactical-blue/40 text-xs text-tactical-blue-light rounded-lg transition-colors ${openMembershipId === u.id ? 'ring-1 ring-tactical-blue' : ''}`}>Membresia</button>
                       {openMembershipId === u.id && (
-                        <div className="absolute right-0 top-full mt-1 z-10">
-                          <div className="bg-navy-800 border border-navy-700 rounded-lg p-2 shadow-xl min-w-[140px]">
+                        <div className="absolute right-0 top-full mt-1 z-20">
+                          <div className="bg-navy-800 border border-navy-700 rounded-lg p-2 shadow-xl min-w-[240px]">
                             {[{ h: 12, label: '12h' }, { h: 168, label: '7d' }, { h: 360, label: '15d' }, { h: 720, label: '30d' }, { h: 1440, label: '60d' }, { h: 2160, label: '90d' }, { h: 4320, label: '180d' }, { h: 8760, label: '365d' }].map(o => (
                               <button key={o.h} onClick={() => { handleSetMembership(u.id, o.h); setOpenMembershipId(null); }}
                                 className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-navy-700 rounded transition-colors">
@@ -449,6 +474,17 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
                               className="w-full text-left px-3 py-1.5 text-xs text-danger hover:bg-navy-700 rounded transition-colors">
                               Sin limite
                             </button>
+                            <div className="border-t border-navy-700 mt-1 pt-2">
+                              <p className="text-[10px] text-slate-500 mb-1">O asigna una fecha exacta (fin de dia):</p>
+                              <input type="date" value={membershipDate || new Date().toISOString().slice(0, 10)}
+                                min={new Date().toISOString().slice(0, 10)}
+                                onChange={e => setMembershipDate(e.target.value)}
+                                className="w-full px-2 py-1.5 bg-navy-900 border border-navy-700 rounded-md text-xs text-white focus:outline-none focus:border-tactical-blue mb-1.5" />
+                              <button onClick={() => handleSetMembershipToDate(u.id, membershipDate)}
+                                className="w-full py-1.5 bg-gold/20 hover:bg-gold/40 text-xs text-gold rounded-md transition-colors">
+                                Aplicar fecha
+                              </button>
+                            </div>
                           </div>
                         </div>
                       )}
