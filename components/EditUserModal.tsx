@@ -7,23 +7,20 @@ import type { User } from './types';
 export default function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => void; onSave: (u: User, newPassword?: string) => void }) {
   const [form, setForm] = useState({
     nombre: user.nombre, apellido: user.apellido, email: user.email,
-    password: '', membershipHours: '' as string | number,
-    membershipDate: '',
+    password: '', membership: '' as '' | 'free' | 'vip',
     maxDevices: user.maxDevices
   });
+
+  const VIP_EXPIRY = new Date(2026, 11, 31, 23, 59, 59, 999).toISOString();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nombre || !form.apellido) return;
     let expiry: string | null;
-    if (form.membershipDate) {
-      const [y, m, d] = form.membershipDate.split('-').map(Number);
-      expiry = new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
-    } else if (form.membershipHours === 'eoy') {
-      const endOfYear = new Date(new Date().getFullYear(), 11, 31, 23, 59, 59);
-      expiry = endOfYear.toISOString();
-    } else if (form.membershipHours) {
-      expiry = new Date(Date.now() + Number(form.membershipHours) * 3600000).toISOString();
+    if (form.membership === 'free') {
+      expiry = new Date(Date.now() + 12 * 3600000).toISOString();
+    } else if (form.membership === 'vip') {
+      expiry = VIP_EXPIRY;
     } else {
       expiry = user.membershipExpiry;
     }
@@ -45,9 +42,8 @@ export default function EditUserModal({ user, onClose, onSave }: { user: User; o
   const timeLeft = currentExpiry ? Math.max(0, new Date(currentExpiry).getTime() - Date.now()) : null;
   const daysLeft = timeLeft !== null ? Math.floor(timeLeft / 86400000) : null;
   const hoursLeft = timeLeft !== null ? Math.floor((timeLeft % 86400000) / 3600000) : null;
-  const currentIsEndOfYear = currentExpiry
-    ? form.membershipHours === 'eoy' ||
-      (new Date(currentExpiry).getMonth() === 11 && new Date(currentExpiry).getDate() === 31 && new Date(currentExpiry).getFullYear() >= new Date().getFullYear())
+  const currentIsVip = currentExpiry
+    ? new Date(currentExpiry).getFullYear() === 2026 && new Date(currentExpiry).getMonth() === 11 && new Date(currentExpiry).getDate() === 31
     : false;
 
   return (
@@ -89,44 +85,21 @@ export default function EditUserModal({ user, onClose, onSave }: { user: User; o
             {!currentExpiry && (
               <p className="text-xs text-slate-500 mb-2">Sin membresia (acceso ilimitado)</p>
             )}
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { h: 12, label: '12h', sub: 'Prueba' },
-                { h: 168, label: '7d', sub: '' },
-                { h: 360, label: '15d', sub: '' },
-                { h: 720, label: '30d', sub: '' },
-                { h: 1440, label: '60d', sub: '' },
-                { h: 2160, label: '90d', sub: '' },
-                { h: 4320, label: '180d', sub: '' },
-                { h: 8760, label: '365d', sub: '' },
-              ].map(o => (
-                <button key={o.h} type="button" onClick={() => setForm({...form, membershipHours: o.h})}
-                  className={`py-1.5 text-xs rounded-lg border transition-colors ${
-                    form.membershipHours === o.h ? 'border-tactical-blue bg-tactical-blue/20 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
-                  }`}>
-                  {o.label}
-                </button>
-              ))}
-              <button type="button" onClick={() => setForm({...form, membershipHours: form.membershipHours === 'eoy' ? '' : 'eoy', membershipDate: ''})}
-                className={`py-1.5 text-xs rounded-lg border transition-colors ${
-                  form.membershipHours === 'eoy' || currentIsEndOfYear ? 'border-gold bg-gold/20 text-gold' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setForm({...form, membership: form.membership === 'free' ? '' : 'free'})}
+                className={`py-2 text-xs rounded-lg border transition-colors ${
+                  form.membership === 'free' ? 'border-tactical-blue bg-tactical-blue/20 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
                 }`}>
-                31 dic
+                FREE - 12h (prueba)
+              </button>
+              <button type="button" onClick={() => setForm({...form, membership: form.membership === 'vip' ? '' : 'vip'})}
+                className={`py-2 text-xs rounded-lg border transition-colors ${
+                  form.membership === 'vip' || (form.membership === '' && currentIsVip) ? 'border-gold bg-gold/20 text-gold' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+                }`}>
+                VIP - hasta 31 dic 2026
               </button>
             </div>
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
-              <input type="date" value={form.membershipDate}
-                min={new Date().toISOString().slice(0, 10)}
-                onChange={e => { setForm({...form, membershipDate: e.target.value, membershipHours: e.target.value ? '' : form.membershipHours}); }}
-                className="flex-1 min-w-[140px] px-2 py-1.5 bg-navy-800 border border-navy-700 rounded-lg text-xs text-white focus:outline-none focus:border-tactical-blue" />
-              {form.membershipDate && (
-                <button type="button" onClick={() => setForm({...form, membershipDate: ''})}
-                  className="px-2.5 py-1.5 text-xs bg-navy-700 hover:bg-navy-600 text-slate-300 rounded-lg transition-colors">
-                  Limpiar
-                </button>
-              )}
-            </div>
-            <p className="text-xs text-slate-600 mt-1">12h = periodo de prueba. 31 dic = hasta el {new Date().getFullYear()}-12-31. Fecha exacta (ej. 31 dic) = hasta el final de ese dia. Sin seleccion = mantener actual</p>
+            <p className="text-xs text-slate-600 mt-1">FREE = 12 horas de prueba. VIP = acceso hasta el 31/12/2026. Sin seleccion = mantener la membresia actual</p>
           </div>
           <div>
             <label className="block text-xs text-slate-400 mb-1">Dispositivos permitidos</label>

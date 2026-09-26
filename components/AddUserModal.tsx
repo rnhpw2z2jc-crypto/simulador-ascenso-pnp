@@ -1,17 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { hashPassword } from '../lib/password';
 import { sanitizeUserInput, validateUsername, validateEmail } from '../lib/security';
+import { getAllUsersPublic } from '../lib/users';
 import type { User } from './types';
 
 export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User, password: string) => void }) {
   const [form, setForm] = useState({
     username: '', password: '', nombre: '', apellido: '', email: '',
-    membershipHours: '' as string | number
+    membership: 'free' as 'free' | 'vip'
   });
   const [error, setError] = useState('');
+  const [existingUsernames, setExistingUsernames] = useState<string[]>([]);
+  const [usernameCheck, setUsernameCheck] = useState<'idle' | 'ok' | 'taken'>('idle');
+  const VIP_EXPIRY = new Date(2026, 11, 31, 23, 59, 59, 999).toISOString();
+
+  const normalize = (s: string) => s.trim().toLowerCase();
+
+  useEffect(() => {
+    getAllUsersPublic()
+      .then(users => setExistingUsernames(users.map(u => normalize(u.username))))
+      .catch(() => setExistingUsernames([]));
+  }, []);
+
+  const handleUsernameChange = (value: string) => {
+    setForm({ ...form, username: value });
+    const n = normalize(value);
+    setUsernameCheck(!value.trim() ? 'idle' : existingUsernames.includes(n) ? 'taken' : 'ok');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,6 +39,14 @@ export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; 
     }
     const usernameError = validateUsername(form.username);
     if (usernameError) { setError(usernameError); return; }
+    if (usernameCheck === 'taken') {
+      setError('Ese usuario ya esta en uso. Elija otro nombre');
+      return;
+    }
+    if (usernameCheck === 'idle' && existingUsernames.includes(normalize(form.username))) {
+      setError('Ese usuario ya esta en uso. Elija otro nombre');
+      return;
+    }
     if (form.email) {
       const emailError = validateEmail(form.email);
       if (emailError) { setError(emailError); return; }
@@ -36,13 +62,7 @@ export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; 
       email: form.email,
     });
     const hashedPassword = await hashPassword(form.password);
-    let expiry: string | null = null;
-    if (form.membershipHours === 'eoy') {
-      const endOfYear = new Date(new Date().getFullYear(), 11, 31, 23, 59, 59);
-      expiry = endOfYear.toISOString();
-    } else if (form.membershipHours) {
-      expiry = new Date(Date.now() + Number(form.membershipHours) * 3600000).toISOString();
-    }
+    const expiry: string | null = form.membership === 'vip' ? VIP_EXPIRY : new Date(Date.now() + 12 * 3600000).toISOString();
     onAdd({
       id: Date.now().toString(),
       username: clean.username,
@@ -80,8 +100,11 @@ export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; 
           </div>
           <div>
             <label className="block text-xs text-slate-400 mb-1">Usuario *</label>
-            <input type="text" value={form.username} onChange={e => setForm({...form, username: e.target.value})}
-              className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue" required />
+            <input type="text" value={form.username} onChange={e => handleUsernameChange(e.target.value)}
+              className="w-full px-3 py-2 bg-navy-800 border border-navy-700 rounded-lg text-white text-sm focus:outline-none focus:border-tactical-blue"
+              style={usernameCheck === 'taken' ? { borderColor: '#ef4444' } : usernameCheck === 'ok' ? { borderColor: '#22c55e' } : undefined} required />
+            {usernameCheck === 'taken' && <p className="text-xs text-danger mt-1">Ese nombre ya esta en uso</p>}
+            {usernameCheck === 'ok' && <p className="text-xs text-success mt-1">Nombre disponible</p>}
           </div>
           <div>
             <label className="block text-xs text-slate-400 mb-1">Contrasena *</label>
@@ -95,29 +118,21 @@ export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; 
           </div>
           <div>
             <label className="block text-xs text-slate-400 mb-1">Membresia</label>
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { h: 12, label: '12h' },
-                { h: 168, label: '7d' },
-                { h: 720, label: '30d' },
-                { h: 2160, label: '90d' },
-                { h: 8760, label: '365d' },
-              ].map(o => (
-                <button key={o.h} type="button" onClick={() => setForm({...form, membershipHours: o.h})}
-                  className={`py-1.5 text-xs rounded-lg border transition-colors ${
-                    form.membershipHours === o.h ? 'border-tactical-blue bg-tactical-blue/20 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
-                  }`}>
-                  {o.label}
-                </button>
-              ))}
-              <button type="button" onClick={() => setForm({...form, membershipHours: form.membershipHours === 'eoy' ? '' : 'eoy'})}
-                className={`py-1.5 text-xs rounded-lg border transition-colors ${
-                  form.membershipHours === 'eoy' ? 'border-gold bg-gold/20 text-gold' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setForm({...form, membership: 'free'})}
+                className={`py-2 text-xs rounded-lg border transition-colors ${
+                  form.membership === 'free' ? 'border-tactical-blue bg-tactical-blue/20 text-tactical-blue-light' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
                 }`}>
-                31 dic
+                FREE - 12h (prueba)
+              </button>
+              <button type="button" onClick={() => setForm({...form, membership: 'vip'})}
+                className={`py-2 text-xs rounded-lg border transition-colors ${
+                  form.membership === 'vip' ? 'border-gold bg-gold/20 text-gold' : 'border-navy-700 bg-navy-800/50 text-slate-400 hover:border-navy-600'
+                }`}>
+                VIP - hasta 31 dic 2026
               </button>
             </div>
-            <p className="text-xs text-slate-600 mt-1">12h = prueba. 31 dic = hasta el {new Date().getFullYear()}-12-31. Sin seleccion = ilimitado</p>
+            <p className="text-xs text-slate-600 mt-1">FREE = 12 horas de prueba. VIP = acceso hasta el 31/12/2026.</p>
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors">Cancelar</button>
