@@ -24,6 +24,7 @@ export default function ExamPage({ questions: examQuestions, state, setState, on
 
   const handleFinish = useCallback(() => {
     if (state.isFinished) return;
+    setShowConfirm(false);
     const timeUsed = Math.floor((Date.now() - state.startTime) / 1000);
     let correctAnswers = 0;
     examQuestions.forEach((q, i) => {
@@ -41,7 +42,11 @@ export default function ExamPage({ questions: examQuestions, state, setState, on
       questions: examQuestions,
     };
     setState(prev => ({ ...prev, isFinished: true }));
-    onFinish(result);
+    try {
+      onFinish(result);
+    } catch {
+      // nunca dejar la pantalla trabada si el guardado/planilla falla
+    }
   }, [state, examQuestions, onFinish, setState]);
 
   useEffect(() => {

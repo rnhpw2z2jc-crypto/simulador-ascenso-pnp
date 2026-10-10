@@ -90,6 +90,15 @@ export default function Home() {
       setUser(JSON.parse(savedUser));
       setCurrentPage('dashboard');
     }
+    try {
+      const rawHistory = localStorage.getItem('simulador_history');
+      if (rawHistory) {
+        const hist = JSON.parse(rawHistory);
+        if (Array.isArray(hist) && hist.length > 40) {
+          localStorage.setItem('simulador_history', JSON.stringify(hist.slice(-40)));
+        }
+      }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -243,13 +252,9 @@ export default function Home() {
 
   const finishExam = (result: ExamResult) => {
     setCurrentResult(result);
-    const history = JSON.parse(localStorage.getItem('simulador_history') || '[]');
-    history.push(result);
-    localStorage.setItem('simulador_history', JSON.stringify(history));
     const failedIds: number[] = result.questions
       .filter((q, i) => result.answers[i] !== q.correctAnswer)
       .map(q => q.id);
-    localStorage.setItem('simulador_failed_ids', JSON.stringify(failedIds));
     if (user) {
       saveExamStat({
         userId: user.id,
@@ -258,6 +263,15 @@ export default function Home() {
         correctAnswers: result.correctAnswers,
         failedQuestionIds: failedIds,
       }).catch(() => {});
+    }
+    try {
+      localStorage.setItem('simulador_failed_ids', JSON.stringify(failedIds));
+      const history = JSON.parse(localStorage.getItem('simulador_history') || '[]');
+      history.push(result);
+      if (history.length > 40) history.splice(0, history.length - 40);
+      localStorage.setItem('simulador_history', JSON.stringify(history));
+    } catch {
+      // si el almacenamiento falla (cuota llena/modo privado), igual se muestra el resultado
     }
     setCurrentPage('results');
   };

@@ -37,12 +37,13 @@ export default function ResultsPage({ result, onBack, onStartReinforcement }: { 
     ? passedMessages[Math.floor(Math.random() * passedMessages.length)]
     : failedMessages[Math.floor(Math.random() * failedMessages.length)];
 
-  const filteredQuestions = result.questions.filter((q, i) => {
-    const isCorrect = result.answers[i] === q.correctAnswer;
-    if (filter === 'correct') return isCorrect;
-    if (filter === 'incorrect') return !isCorrect;
-    return true;
-  });
+  const filtered = result.questions
+    .map((q, i) => ({ q, i, isCorrect: result.answers[i] === q.correctAnswer }))
+    .filter(({ isCorrect }) => {
+      if (filter === 'correct') return isCorrect;
+      if (filter === 'incorrect') return !isCorrect;
+      return true;
+    });
 
   return (
     <motion.div 
@@ -148,14 +149,12 @@ export default function ResultsPage({ result, onBack, onStartReinforcement }: { 
         </div>
 
         <div className="space-y-4">
-          {filteredQuestions.map((q, filterIdx) => {
-            const originalIndex = result.questions.indexOf(q);
-            const userAnswer = result.answers[originalIndex];
-            const isCorrect = userAnswer === q.correctAnswer;
+          {filtered.map(({ q, i, isCorrect }, filterIdx) => {
+            const userAnswer = result.answers[i];
             
             return (
               <motion.div
-                key={q.id}
+                key={`${q.id}-${i}`}
                 initial={{ y: 10, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: filterIdx * 0.05 }}
@@ -175,7 +174,7 @@ export default function ResultsPage({ result, onBack, onStartReinforcement }: { 
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs text-slate-500">Pregunta {originalIndex + 1}</span>
+                      <span className="text-xs text-slate-500">Pregunta {i + 1}</span>
                       <span className="px-2 py-0.5 bg-navy-800 text-xs text-slate-400 rounded">{getCategoryDisplayName(getCategoryKey(q.category))}</span>
                     </div>
                     <p className="text-white font-medium mb-3">{q.question}</p>
