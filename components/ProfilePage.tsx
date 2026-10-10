@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { User, Home as HomeIcon } from 'lucide-react';
 import { hashPassword, verifyPassword } from '../lib/password';
 import { getUserByUsername, updateUser } from '../lib/users';
+import { safeGetJSON } from '../lib/storage';
 import type { ExamResult } from './types';
 import type { User as UserType } from './types';
 
@@ -16,7 +17,7 @@ export default function ProfilePage({ user, onUpdate, onBack }: { user: UserType
   const [msg, setMsg] = useState('');
   const [tab, setTab] = useState<'profile' | 'password'>('profile');
 
-  const history: ExamResult[] = JSON.parse(localStorage.getItem('simulador_history') || '[]');
+  const history = safeGetJSON<ExamResult[]>('simulador_history', []);
   const totalExams = history.length;
   const avgScore = totalExams > 0 ? Math.round(history.reduce((s, r) => s + (r.score / r.totalQuestions * 100), 0) / totalExams) : 0;
   const bestScore = totalExams > 0 ? Math.max(...history.map(r => Math.round(r.score / r.totalQuestions * 100))) : 0;

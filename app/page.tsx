@@ -9,6 +9,7 @@ import { seedDefaultAdmin, migrateDeviceFields, getUserByUsername, updateUser } 
 import { saveExamStat } from '../lib/examStats';
 import { useQuestions } from '../components/useQuestions';
 import { useSessionTimeout } from '../lib/useSessionTimeout';
+import { safeGetJSON, safeSetJSON, safeRemove } from '../lib/storage';
 import ErrorBoundary from '../components/ErrorBoundary';
 import type { ExamConfig, ExamState, ExamResult, User, Question } from '../components/types';
 
@@ -60,8 +61,8 @@ export default function Home() {
     setSessionExpired(true);
     setTimeout(() => {
       setUser(null);
-      localStorage.removeItem('simulador_user');
-      localStorage.removeItem('simulador_last_activity');
+      safeRemove('simulador_user');
+      safeRemove('simulador_last_activity');
       setSessionExpired(false);
       setCurrentPage('login');
     }, 3000);
@@ -72,33 +73,21 @@ export default function Home() {
   useEffect(() => {
     seedDefaultAdmin().catch(() => {});
     migrateDeviceFields().catch(() => {});
-    const savedExams = localStorage.getItem(EXAM_STORAGE_KEY);
-    if (savedExams) {
-      try {
-        const parsed = JSON.parse(savedExams) as { state: ExamState; questions: Question[] };
-        if (parsed.state && !parsed.state.isFinished && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
-          setPausedExam(parsed);
-        } else {
-          localStorage.removeItem(EXAM_STORAGE_KEY);
-        }
-      } catch {
-        localStorage.removeItem(EXAM_STORAGE_KEY);
-      }
+    const parsed = safeGetJSON<{ state: ExamState; questions: Question[] } | null>(EXAM_STORAGE_KEY, null);
+    if (parsed && parsed.state && !parsed.state.isFinished && Array.isArray(parsed.questions) && parsed.questions.length > 0) {
+      setPausedExam(parsed);
+    } else if (parsed) {
+      safeRemove(EXAM_STORAGE_KEY);
     }
-    const savedUser = localStorage.getItem('simulador_user');
+    const savedUser = safeGetJSON<User | null>('simulador_user', null);
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      setUser(savedUser);
       setCurrentPage('dashboard');
     }
-    try {
-      const rawHistory = localStorage.getItem('simulador_history');
-      if (rawHistory) {
-        const hist = JSON.parse(rawHistory);
-        if (Array.isArray(hist) && hist.length > 40) {
-          localStorage.setItem('simulador_history', JSON.stringify(hist.slice(-40)));
-        }
-      }
-    } catch {}
+    const hist = safeGetJSON<ExamResult[]>('simulador_history', []);
+    if (hist.length > 40) {
+      safeSetJSON('simulador_history', hist.slice(-40));
+    }
   }, []);
 
   useEffect(() => {
@@ -129,16 +118,16 @@ export default function Home() {
 
   useEffect(() => {
     if (!examState) {
-      localStorage.removeItem(EXAM_STORAGE_KEY);
+      safeRemove(EXAM_STORAGE_KEY);
       setPausedExam(null);
       return;
     }
     if (examState.isFinished) {
-      localStorage.removeItem(EXAM_STORAGE_KEY);
+      safeRemove(EXAM_STORAGE_KEY);
       setPausedExam(null);
       return;
     }
-    localStorage.setItem(EXAM_STORAGE_KEY, JSON.stringify({ state: examState, questions: examQuestions }));
+    safeSetJSON(EXAM_STORAGE_KEY, { state: examState, questions: examQuestions });
     setPausedExam(examState.isPaused ? { state: examState, questions: examQuestions } : null);
   }, [examState, examQuestions]);
 
@@ -158,7 +147,7 @@ export default function Home() {
             const { password: _, ...safeFresh } = fresh as unknown as Record<string, unknown>;
             const userData = { ...safeFresh, id: fresh.id } as unknown as User;
             setUser(userData);
-            localStorage.setItem('simulador_user', JSON.stringify(userData));
+            safeSetJSON('simulador_user', userData);
           }
         } catch {}
       }, 60000);
@@ -176,13 +165,13 @@ export default function Home() {
       return;
     }
     setUser(safeUser);
-    localStorage.setItem('simulador_user', JSON.stringify(safeUser));
+    safeSetJSON('simulador_user', safeUser);
     setCurrentPage('dashboard');
   };
 
   const handleLogout = () => {
     setUser(null);
-    localStorage.removeItem('simulador_user');
+    safeRemove('simulador_user');
     setCurrentPage('login');
   };
 
@@ -196,7 +185,7 @@ export default function Home() {
         const { password: _, ...safeFresh } = fresh as unknown as Record<string, unknown>;
         const userData = { ...safeFresh, id: fresh.id } as unknown as User;
         setUser(userData);
-        localStorage.setItem('simulador_user', JSON.stringify(userData));
+        safeSetJSON('simulador_user', userData);
       }
     } catch {
       // silencioso - si falla la consulta, usa datos en cache
@@ -209,18 +198,18 @@ export default function Home() {
   };
 
   const startReinforcement = () => {
-    const failedIds: number[] = JSON.parse(localStorage.getItem('simulador_failed_ids') || '[]');
+    const failedIds = safeGetJSON<number[]>('simulador_failed_ids', []);
     if (failedIds.length === 0) return false;
     const failedQuestions = questions.filter(q => failedIds.includes(q.id));
     if (failedQuestions.length === 0) return false;
-    localStorage.removeItem('simulador_failed_ids');
+    safeRemove('simulador_failed_ids');
     const timeLimit = Math.ceil(failedQuestions.length * 1.5) * 60;
     beginExam(failedQuestions, timeLimit);
     return true;
   };
 
   const beginExam = (qs: Question[], timeLimit: number) => {
-    localStorage.removeItem(EXAM_STORAGE_KEY);
+    safeRemove(EXAM_STORAGE_KEY);
     setPausedExam(null);
     setExamQuestions(qs);
     setExamState({
@@ -265,11 +254,10 @@ export default function Home() {
       }).catch(() => {});
     }
     try {
-      localStorage.setItem('simulador_failed_ids', JSON.stringify(failedIds));
-      const history = JSON.parse(localStorage.getItem('simulador_history') || '[]');
+      safeSetJSON('simulador_failed_ids', failedIds);
+      const history = safeGetJSON<ExamResult[]>('simulador_history', []);
       history.push(result);
-      if (history.length > 40) history.splice(0, history.length - 40);
-      localStorage.setItem('simulador_history', JSON.stringify(history));
+      safeSetJSON('simulador_history', history.slice(-40));
     } catch {
       // si el almacenamiento falla (cuota llena/modo privado), igual se muestra el resultado
     }
@@ -409,7 +397,7 @@ export default function Home() {
               const { password: _, ...safeUpdated } = updated as unknown as Record<string, unknown>;
               const safeUser = safeUpdated as unknown as User;
               setUser(safeUser);
-              localStorage.setItem('simulador_user', JSON.stringify(safeUser));
+              safeSetJSON('simulador_user', safeUser);
             }}
             onBack={() => setCurrentPage('dashboard')}
           />

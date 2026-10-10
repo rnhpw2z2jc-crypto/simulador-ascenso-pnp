@@ -21,7 +21,11 @@ function getAttempts(): AttemptRecord[] {
 
 function saveAttempts(attempts: AttemptRecord[]): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(attempts));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(attempts));
+  } catch {
+    // si el almacenamiento falla, el bloqueo por intentos sigue funcionando en memoria
+  }
 }
 
 function getRecentAttempts(username: string): AttemptRecord[] {

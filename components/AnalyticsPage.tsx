@@ -11,12 +11,13 @@ import {
   LineChart, Line, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
 } from 'recharts';
 import { getCategoryKey, getCategoryDisplayName, categoryNames } from '../lib/categoryUtils';
+import { safeGetJSON } from '../lib/storage';
 import type { ExamResult, Question } from './types';
 
 const COLORS = ['#22c55e', '#ef4444', '#eab308', '#3b82f6', '#8b5cf6', '#f97316', '#06b6d4', '#ec4899'];
 
 export default function AnalyticsPage({ questions, onBack }: { questions: Question[]; onBack: () => void }) {
-  const history: ExamResult[] = JSON.parse(localStorage.getItem('simulador_history') || '[]');
+  const history = safeGetJSON<ExamResult[]>('simulador_history', []);
 
   const categoryStats = useMemo(() => {
     const stats: Record<string, { total: number; correct: number; wrong: number; exams: number }> = {};

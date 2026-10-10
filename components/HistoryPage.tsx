@@ -2,10 +2,11 @@
 
 import { motion } from 'framer-motion';
 import { BarChart3, Home as HomeIcon, BookOpen } from 'lucide-react';
+import { safeGetJSON } from '../lib/storage';
 import type { ExamResult } from './types';
 
 export default function HistoryPage({ onBack }: { onBack: () => void }) {
-  const history: ExamResult[] = JSON.parse(localStorage.getItem('simulador_history') || '[]');
+  const history = safeGetJSON<ExamResult[]>('simulador_history', []);
   
   const formatDate = (isoString: string) => {
     const date = new Date(isoString);

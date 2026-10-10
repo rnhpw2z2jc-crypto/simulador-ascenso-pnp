@@ -67,7 +67,7 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
         const isAdmin = found.role === 'admin';
 
         if (!isAdmin && !found.devices.includes(currentDeviceId) && found.devices.length >= found.maxDevices) {
-          await logAccessAttempt({
+          logAccessAttempt({
             userId: found.id,
             username: found.username,
             deviceId: currentDeviceId,
@@ -75,14 +75,14 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
             browser,
             status: 'blocked',
             reason: `Limite de ${found.maxDevices} dispositivo${found.maxDevices !== 1 ? 's' : ''} alcanzado`,
-          });
+          }).catch(() => {});
           setError(`Esta cuenta solo puede usarse en ${found.maxDevices} dispositivo${found.maxDevices !== 1 ? 's' : ''}. Si cambio de equipo, comuniquese con el administrador.`);
           setLoading(false);
           return;
         }
 
         if (isAdmin) {
-          await logAccessAttempt({
+          logAccessAttempt({
             userId: found.id,
             username: found.username,
             deviceId: currentDeviceId,
@@ -90,13 +90,13 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
             browser,
             status: 'allowed',
             reason: 'Admin - acceso libre',
-          });
+          }).catch(() => {});
           const { password: _, ...safeFound } = found as unknown as Record<string, unknown>;
           onLogin(safeFound as unknown as UserType);
         } else if (!found.devices.includes(currentDeviceId)) {
           const updatedUser = { ...found, devices: [...found.devices, currentDeviceId] };
           await updateUser(updatedUser);
-          await logAccessAttempt({
+          logAccessAttempt({
             userId: found.id,
             username: found.username,
             deviceId: currentDeviceId,
@@ -104,11 +104,11 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
             browser,
             status: 'allowed',
             reason: 'Nuevo dispositivo vinculado',
-          });
+          }).catch(() => {});
           const { password: _, ...safeUpdated } = updatedUser as unknown as Record<string, unknown>;
           onLogin(safeUpdated as unknown as UserType);
         } else {
-          await logAccessAttempt({
+          logAccessAttempt({
             userId: found.id,
             username: found.username,
             deviceId: currentDeviceId,
@@ -116,7 +116,7 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
             browser,
             status: 'allowed',
             reason: 'Dispositivo coincide',
-          });
+          }).catch(() => {});
           const { password: _, ...safeFound2 } = found as unknown as Record<string, unknown>;
           onLogin(safeFound2 as unknown as UserType);
         }

@@ -8,6 +8,7 @@ import {
   BarChart3, Brain, Download, AlertTriangle, TrendingUp, ChevronDown 
 } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
+import { safeGetJSON } from '../lib/storage';
 import type { User as UserType, ExamConfig, ExamResult, Question, ExamState } from './types';
 
 export default function DashboardPage({ user, questions, onRefreshUser, onStartExam, onStartReinforcement, onStartRecognition, onViewHistory, onGoAnalytics, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate, pausedExam, onResumeExam }: {
@@ -36,7 +37,7 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
   const [openMode, setOpenMode] = useState<'recognition' | 'simulacro' | null>('recognition');
 
   useEffect(() => {
-    const failedIds: number[] = JSON.parse(localStorage.getItem('simulador_failed_ids') || '[]');
+    const failedIds = safeGetJSON<number[]>('simulador_failed_ids', []);
     setFailedCount(failedIds.length);
   }, []);
 
@@ -44,7 +45,7 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
     onRefreshUser(user.username);
   }, [user.username, onRefreshUser]);
 
-  const history = JSON.parse(localStorage.getItem('simulador_history') || '[]');
+  const history = safeGetJSON<ExamResult[]>('simulador_history', []);
   const totalExams = history.length;
   const avgScore = totalExams > 0 
     ? Math.round(history.reduce((sum: number, r: ExamResult) => sum + (r.score / r.totalQuestions * 100), 0) / totalExams)

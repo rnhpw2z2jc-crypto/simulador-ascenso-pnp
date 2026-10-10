@@ -8,7 +8,7 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
   if (!storedHash.startsWith('$2')) {
-    throw new Error('Contraseña sin hashear. Requiere migración.');
+    return false;
   }
   return bcrypt.compare(password, storedHash);
 }

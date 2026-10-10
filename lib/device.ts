@@ -8,8 +8,10 @@ async function sha256(message: string): Promise<string> {
 }
 
 export async function getDeviceId(): Promise<string> {
-  const stored = localStorage.getItem(DEVICE_ID_KEY);
-  if (stored) return stored;
+  try {
+    const stored = localStorage.getItem(DEVICE_ID_KEY);
+    if (stored) return stored;
+  } catch {}
 
   const components: string[] = [
     navigator.userAgent,
@@ -25,15 +27,26 @@ export async function getDeviceId(): Promise<string> {
   ];
 
   const raw = components.join('|');
-  const hash = await sha256(raw);
-  const deviceId = 'dev_' + hash.slice(0, 24);
+  let deviceId: string;
+  try {
+    const hash = await sha256(raw);
+    deviceId = 'dev_' + hash.slice(0, 24);
+  } catch {
+    deviceId = 'dev_' + raw.length + '_' + Math.random().toString(16).slice(2, 10);
+  }
 
-  localStorage.setItem(DEVICE_ID_KEY, deviceId);
+  try {
+    localStorage.setItem(DEVICE_ID_KEY, deviceId);
+  } catch {}
   return deviceId;
 }
 
 export function getDeviceIdSync(): string | null {
-  return localStorage.getItem(DEVICE_ID_KEY);
+  try {
+    return localStorage.getItem(DEVICE_ID_KEY);
+  } catch {
+    return null;
+  }
 }
 
 export function getDeviceInfo(): { platform: string; browser: string } {
