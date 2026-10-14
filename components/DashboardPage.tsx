@@ -1,15 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, Settings, User, LogOut, FileText, Target, Trophy, Clock, 
   Hash, BookMarked, Zap, BookOpen, Award, Check, Play, ArrowRight, 
   BarChart3, Brain, Download, AlertTriangle, TrendingUp, ChevronDown 
 } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
-import { safeGetJSON } from '../lib/storage';
+import { safeGetJSON, safeSetJSON } from '../lib/storage';
+import MotivationalPopup from './MotivationalPopup';
 import type { User as UserType, ExamConfig, ExamResult, Question, ExamState } from './types';
+
+const MOTIVATIONAL_ENABLED = true;
+const MOTIVATIONAL_ADMIN_ONLY = true;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export default function DashboardPage({ user, questions, onRefreshUser, onStartExam, onStartReinforcement, onStartRecognition, onViewHistory, onGoAnalytics, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate, pausedExam, onResumeExam }: {
   user: UserType;
@@ -44,6 +49,24 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
   useEffect(() => {
     onRefreshUser(user.username);
   }, [user.username, onRefreshUser]);
+
+  const [showMotivational, setShowMotivational] = useState(false);
+
+  useEffect(() => {
+    if (!MOTIVATIONAL_ENABLED) return;
+    const isAdmin = user.role === 'admin';
+    if (MOTIVATIONAL_ADMIN_ONLY && !isAdmin) return;
+    const last = safeGetJSON<number>('simulador_motiv_last', 0);
+    if (isAdmin && MOTIVATIONAL_ADMIN_ONLY) {
+      safeSetJSON('simulador_motiv_last', Date.now());
+      setShowMotivational(true);
+      return;
+    }
+    if (Date.now() - last > DAY_MS) {
+      safeSetJSON('simulador_motiv_last', Date.now());
+      setShowMotivational(true);
+    }
+  }, [user.role, user.username]);
 
   const history = safeGetJSON<ExamResult[]>('simulador_history', []);
   const totalExams = history.length;
@@ -489,6 +512,12 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
           </div>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {showMotivational && (
+          <MotivationalPopup nombre={user.nombre} onClose={() => setShowMotivational(false)} />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
