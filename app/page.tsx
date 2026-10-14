@@ -166,6 +166,7 @@ export default function Home() {
     }
     setUser(safeUser);
     safeSetJSON('simulador_user', safeUser);
+    try { sessionStorage.setItem('simulador_motiv_show', '1'); } catch {}
     setCurrentPage('dashboard');
   };
 

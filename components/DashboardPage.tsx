@@ -8,13 +8,13 @@ import {
   BarChart3, Brain, Download, AlertTriangle, TrendingUp, ChevronDown 
 } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
-import { safeGetJSON, safeSetJSON } from '../lib/storage';
+import { safeGetJSON } from '../lib/storage';
 import MotivationalPopup from './MotivationalPopup';
 import type { User as UserType, ExamConfig, ExamResult, Question, ExamState } from './types';
 
 const MOTIVATIONAL_ENABLED = true;
-const MOTIVATIONAL_ADMIN_ONLY = true;
-const DAY_MS = 24 * 60 * 60 * 1000;
+
+let motivationalShownThisLoad = false;
 
 export default function DashboardPage({ user, questions, onRefreshUser, onStartExam, onStartReinforcement, onStartRecognition, onViewHistory, onGoAnalytics, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate, pausedExam, onResumeExam }: {
   user: UserType;
@@ -54,19 +54,16 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
 
   useEffect(() => {
     if (!MOTIVATIONAL_ENABLED) return;
-    const isAdmin = user.role === 'admin';
-    if (MOTIVATIONAL_ADMIN_ONLY && !isAdmin) return;
-    const last = safeGetJSON<number>('simulador_motiv_last', 0);
-    if (isAdmin && MOTIVATIONAL_ADMIN_ONLY) {
-      safeSetJSON('simulador_motiv_last', Date.now());
-      setShowMotivational(true);
-      return;
-    }
-    if (Date.now() - last > DAY_MS) {
-      safeSetJSON('simulador_motiv_last', Date.now());
+    let pendingLogin = false;
+    try {
+      pendingLogin = sessionStorage.getItem('simulador_motiv_show') === '1';
+      sessionStorage.removeItem('simulador_motiv_show');
+    } catch {}
+    if (!motivationalShownThisLoad || pendingLogin) {
+      motivationalShownThisLoad = true;
       setShowMotivational(true);
     }
-  }, [user.role, user.username]);
+  }, []);
 
   const history = safeGetJSON<ExamResult[]>('simulador_history', []);
   const totalExams = history.length;
