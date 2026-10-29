@@ -56,11 +56,13 @@ function buildQuestionSegments(q: Question, index: number, total: number, withAn
   return segments;
 }
 
-export default function AudioTacticoPage({ questions, onBack }: {
+export default function AudioTacticoPage({ questions, onBack, initialCategory, onChangeTheme }: {
   questions: Question[];
   onBack: () => void;
+  initialCategory?: string | null;
+  onChangeTheme?: () => void;
 }) {
-  const [category, setCategory] = useState<string | null>(null);
+  const [category] = useState<string | null>(initialCategory ?? null);
   const [size, setSize] = useState<number>(10);
   const [mode, setMode] = useState<StudyMode>('estudio');
   const [autoAdvance, setAutoAdvance] = useState(true);
@@ -170,7 +172,6 @@ export default function AudioTacticoPage({ questions, onBack }: {
     playRef.current = playIndex;
   });
 
-  const availableCategories = Array.from(new Set(questions.map(q => q.category)));
   const pool = category ? questions.filter(q => q.category === category) : questions;
   const current = session[index];
   const normName = current ? getCategoryDisplayName(getCategoryKey(current.category)) : '';
@@ -290,49 +291,30 @@ export default function AudioTacticoPage({ questions, onBack }: {
           {!started ? (
             <motion.div key="setup" initial={{ y: 12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -12, opacity: 0 }} className="space-y-5">
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h2 className="text-white font-semibold mb-1 flex items-center gap-2">
-                  <ListMusic className="w-5 h-5 text-gold" /> 1. Elige el tema
-                </h2>
-                <p className="text-xs text-slate-400 mb-4">Se leera la pregunta, la respuesta correcta y el sustento legal.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[340px] overflow-y-auto pr-1">
-                  <button
-                    onClick={() => setCategory(null)}
-                    className={`p-3 rounded-xl border text-left transition-all duration-200 ${
-                      category === null
-                        ? 'border-gold bg-gold/10'
-                        : 'border-navy-700 bg-navy-800/50 hover:border-gold/60'
-                    }`}
-                  >
-                    <span className={`text-sm font-medium block ${category === null ? 'text-gold' : 'text-white'}`}>
-                      📚 Todos los temas {category === null && <Check className="w-3.5 h-3.5 inline ml-1" />}
-                    </span>
-                    <span className="text-xs text-slate-500">{questions.length} preguntas</span>
-                  </button>
-                  {availableCategories.map(cat => {
-                    const count = questions.filter(q => q.category === cat).length;
-                    const active = category === cat;
-                    return (
-                      <button
-                        key={cat}
-                        onClick={() => setCategory(cat)}
-                        className={`p-3 rounded-xl border text-left transition-all duration-200 ${
-                          active
-                            ? 'border-gold bg-gold/10'
-                            : 'border-navy-700 bg-navy-800/50 hover:border-gold/60'
-                        }`}
-                      >
-                        <span className={`text-sm font-medium block ${active ? 'text-gold' : 'text-white'}`}>
-                          ⚖️ {getCategoryDisplayName(getCategoryKey(cat))} {active && <Check className="w-3.5 h-3.5 inline ml-1" />}
-                        </span>
-                        <span className="text-xs text-slate-500">{count} preguntas</span>
-                      </button>
-                    );
-                  })}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">Tema seleccionado</p>
+                    <h2 className="text-white font-semibold flex items-center gap-2 truncate">
+                      <ListMusic className="w-5 h-5 text-gold flex-shrink-0" />
+                      {category ? getCategoryDisplayName(getCategoryKey(category)) : '📚 Todos los temas'}
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {pool.length} preguntas disponibles · se leerá la pregunta, la respuesta correcta y el sustento legal.
+                    </p>
+                  </div>
+                  {onChangeTheme && (
+                    <button
+                      onClick={() => { stop(); onChangeTheme(); }}
+                      className="px-3 py-1.5 bg-navy-800 hover:bg-navy-700 text-slate-300 text-xs rounded-lg flex items-center gap-1.5 transition-colors flex-shrink-0"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" /> Cambiar tema
+                    </button>
+                  )}
                 </div>
               </div>
 
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h2 className="text-white font-semibold mb-3">2. Tamano de la sesion</h2>
+                <h2 className="text-white font-semibold mb-3">Tamano de la sesion</h2>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { value: 10, label: '10 preguntas', hint: '~8 min' },
@@ -359,7 +341,7 @@ export default function AudioTacticoPage({ questions, onBack }: {
               </div>
 
               <div className="glass rounded-2xl p-5 sm:p-6">
-                <h2 className="text-white font-semibold mb-3">3. Modo de escucha</h2>
+                <h2 className="text-white font-semibold mb-3">Modo de escucha</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     onClick={() => setMode('estudio')}
@@ -428,7 +410,7 @@ export default function AudioTacticoPage({ questions, onBack }: {
                 <span className="px-3 py-1 bg-navy-800 text-slate-300 text-xs rounded-full">
                   {mode === 'estudio' ? '🎧 Estudio' : '🧠 Evaluacion'}
                 </span>
-                <button onClick={restartSession} className="ml-auto px-3 py-1 bg-navy-800 hover:bg-navy-700 text-slate-300 text-xs rounded-lg flex items-center gap-1.5 transition-colors">
+                <button onClick={() => { if (onChangeTheme) { stop(); onChangeTheme(); } else { restartSession(); } }} className="ml-auto px-3 py-1 bg-navy-800 hover:bg-navy-700 text-slate-300 text-xs rounded-lg flex items-center gap-1.5 transition-colors">
                   <RotateCcw className="w-3.5 h-3.5" /> Cambiar tema
                 </button>
               </div>

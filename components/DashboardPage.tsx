@@ -1,30 +1,34 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import type { ElementType } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Shield, Settings, User, LogOut, FileText, Target, Trophy, Clock, 
-  Hash, BookMarked, Zap, BookOpen, Award, Check, Play, ArrowRight, 
-  BarChart3, Brain, Download, AlertTriangle, TrendingUp, ChevronDown, Headphones 
+import {
+  Shield, Settings, User, LogOut, FileText, Target, Trophy, Clock,
+  Zap, BarChart3, Brain, Download, AlertTriangle, TrendingUp,
+  Headphones, ArrowRight, Lock, PlayCircle, Sparkles
 } from 'lucide-react';
-import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
-import { safeGetJSON } from '../lib/storage';
+import { safeGetJSON, safeRemove } from '../lib/storage';
 import { hasAudioAccess } from './types';
 import MotivationalPopup from './MotivationalPopup';
-import type { User as UserType, ExamConfig, ExamResult, Question, ExamState } from './types';
+import type { User as UserType, ExamResult, Question, ExamState } from './types';
 
 const MOTIVATIONAL_ENABLED = true;
 
 let motivationalShownThisLoad = false;
 
-export default function DashboardPage({ user, questions, onRefreshUser, onStartExam, onStartReinforcement, onStartRecognition, onGoAudio, onViewHistory, onGoAnalytics, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate, pausedExam, onResumeExam }: {
+export type FeatureMode = 'simulacro' | 'recognition' | 'audio';
+
+export default function DashboardPage({
+  user, questions, onRefreshUser, onPickMode, onStartReinforcement,
+  onViewHistory, onGoAnalytics, onLogout, onGoAdmin, onGoProfile,
+  isInstallable, onInstall, hasUpdate, onApplyUpdate, pausedExam, onResumeExam,
+}: {
   user: UserType;
   questions: Question[];
   onRefreshUser: (username: string) => Promise<void>;
-  onStartExam: (config: ExamConfig) => void;
+  onPickMode: (mode: FeatureMode) => void;
   onStartReinforcement: () => boolean;
-  onStartRecognition: (category: string | null) => void;
-  onGoAudio: () => void;
   onViewHistory: () => void;
   onGoAnalytics: () => void;
   onLogout: () => void;
@@ -37,11 +41,7 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
   pausedExam: { state: ExamState; questions: Question[] } | null;
   onResumeExam: () => void;
 }) {
-  const [selectedQuestions, setSelectedQuestions] = useState(50);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(['all']);
   const [failedCount, setFailedCount] = useState(0);
-  const [recognitionCategory, setRecognitionCategory] = useState<string | null>(null);
-  const [openMode, setOpenMode] = useState<'recognition' | 'simulacro' | 'audio' | null>('recognition');
   const audioEnabled = hasAudioAccess(user);
 
   useEffect(() => {
@@ -70,7 +70,7 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
 
   const history = safeGetJSON<ExamResult[]>('simulador_history', []);
   const totalExams = history.length;
-  const avgScore = totalExams > 0 
+  const avgScore = totalExams > 0
     ? Math.round(history.reduce((sum: number, r: ExamResult) => sum + (r.score / r.totalQuestions * 100), 0) / totalExams)
     : 0;
   const bestScore = totalExams > 0
@@ -80,38 +80,97 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
     ? Math.round(history.reduce((sum: number, r: ExamResult) => sum + r.timeUsed, 0) / 3600 * 10) / 10
     : 0;
 
-  const availableCategories = Array.from(new Set(questions.map(q => q.category)));
+  const stats = [
+    { label: 'Exámenes', value: totalExams, icon: FileText, color: 'text-tactical-blue-light', bg: 'bg-tactical-blue/20' },
+    { label: 'Promedio', value: `${avgScore}%`, icon: Target, color: 'text-gold', bg: 'bg-gold/20' },
+    { label: 'Mejor', value: `${bestScore}%`, icon: Trophy, color: 'text-success', bg: 'bg-success/20' },
+    { label: 'Estudio', value: `${studyHours}h`, icon: Clock, color: 'text-danger', bg: 'bg-danger/20' },
+  ];
 
-  const toggleCategory = (cat: string) => {
-    if (cat === 'all') {
-      setSelectedCategories(['all']);
-    } else {
-      const newCats = selectedCategories.filter(c => c !== 'all');
-      if (newCats.includes(cat)) {
-        const filtered = newCats.filter(c => c !== cat);
-        setSelectedCategories(filtered.length === 0 ? ['all'] : filtered);
-      } else {
-        setSelectedCategories([...newCats, cat]);
-      }
-    }
-  };
-
-  const handleStart = () => {
-    onStartExam({
-      numQuestions: selectedQuestions,
-      categories: selectedCategories.includes('all') ? availableCategories : selectedCategories,
-    });
-  };
+  const tiles: Array<{
+    id: string;
+    title: string;
+    description: string;
+    icon: ElementType;
+    badge?: string;
+    enabled: boolean;
+    onClick: () => void;
+    accent: string;
+    iconBg: string;
+    iconColor: string;
+    hover: string;
+  }> = [
+    {
+      id: 'simulacro',
+      title: 'Simulacro',
+      description: 'Examen cronometrado con las preguntas del tema',
+      icon: FileText,
+      badge: `${questions.length}`,
+      enabled: questions.length > 0,
+      onClick: () => onPickMode('simulacro'),
+      accent: 'border-tactical-blue/60 hover:border-tactical-blue',
+      iconBg: 'bg-gradient-to-br from-tactical-blue to-tactical-blue-dark',
+      iconColor: 'text-white',
+      hover: 'hover:shadow-[0_0_30px_-8px_rgba(37,99,235,0.6)]',
+    },
+    {
+      id: 'recognition',
+      title: 'Reconocimiento',
+      description: 'Repasa pregunta por pregunta, sin presión de tiempo',
+      icon: Target,
+      enabled: questions.length > 0,
+      onClick: () => onPickMode('recognition'),
+      accent: 'border-cyan-500/40 hover:border-cyan-400',
+      iconBg: 'bg-gradient-to-br from-cyan-500 to-tactical-blue-dark',
+      iconColor: 'text-white',
+      hover: 'hover:shadow-[0_0_30px_-8px_rgba(6,182,212,0.55)]',
+    },
+    {
+      id: 'audio',
+      title: 'Audio Táctico',
+      description: audioEnabled
+        ? 'Escucha pregunta, respuesta y sustento legal'
+        : 'Complemento no activado en tu cuenta',
+      icon: Headphones,
+      badge: audioEnabled ? 'Complemento' : 'Bloqueado',
+      enabled: audioEnabled,
+      onClick: () => onPickMode('audio'),
+      accent: 'border-gold/60 hover:border-gold',
+      iconBg: 'bg-gradient-to-br from-gold to-gold-dark',
+      iconColor: 'text-navy-900',
+      hover: 'hover:shadow-[0_0_30px_-8px_rgba(234,179,8,0.55)]',
+    },
+    {
+      id: 'reforzamiento',
+      title: 'Reforzamiento',
+      description: failedCount > 0
+        ? `Repasa las ${failedCount} pregunta${failedCount !== 1 ? 's' : ''} que fallaste`
+        : 'Sin preguntas falladas por ahora',
+      icon: Brain,
+      badge: failedCount > 0 ? `${failedCount}` : undefined,
+      enabled: failedCount > 0,
+      onClick: () => {
+        if (!onStartReinforcement()) {
+          safeRemove('simulador_failed_ids');
+          setFailedCount(0);
+        }
+      },
+      accent: 'border-warning/60 hover:border-warning',
+      iconBg: 'bg-gradient-to-br from-warning to-gold-dark',
+      iconColor: 'text-navy-900',
+      hover: 'hover:shadow-[0_0_30px_-8px_rgba(245,158,11,0.55)]',
+    },
+  ];
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="min-h-screen"
     >
       <header className="glass border-b border-navy-700 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-tactical-blue/20 flex items-center justify-center">
               <Shield className="w-6 h-6 text-tactical-blue-light" />
@@ -141,13 +200,13 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-8">
-          <h2 className="text-2xl font-bold text-white mb-2">
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-6">
+          <h2 className="text-2xl font-bold text-white mb-1">
             Bienvenido, <span className="text-gold">{user.apellido}</span>
           </h2>
-          <p className="text-slate-400">Prepárate para tu examen de ascenso con nuestra plataforma de simulación</p>
-          
+          <p className="text-slate-400 text-sm">Elige cómo quieres entrenar hoy</p>
+
           {user.membershipExpiry && (() => {
             const remainingMs = new Date(user.membershipExpiry).getTime() - Date.now();
             const remainingDays = Math.ceil(remainingMs / 86400000);
@@ -242,327 +301,84 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
           )}
         </motion.div>
 
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}
-          className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="glass rounded-xl p-4 card-hover">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-tactical-blue/20 flex items-center justify-center">
-                <FileText className="w-5 h-5 text-tactical-blue-light" />
+        {/* Resumen compacto */}
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.05 }}
+          className="glass rounded-2xl px-4 py-3 mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {stats.map(stat => (
+            <div key={stat.label} className="flex items-center gap-2.5">
+              <div className={`w-8 h-8 rounded-lg ${stat.bg} flex items-center justify-center flex-shrink-0`}>
+                <stat.icon className={`w-4 h-4 ${stat.color}`} />
               </div>
-              <span className="text-sm text-slate-400">Exámenes</span>
-            </div>
-            <p className="text-3xl font-bold text-white">{totalExams}</p>
-            <p className="text-xs text-slate-500 mt-1">Realizados</p>
-          </div>
-          <div className="glass rounded-xl p-4 card-hover">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-gold/20 flex items-center justify-center">
-                <Target className="w-5 h-5 text-gold" />
+              <div className="min-w-0">
+                <p className="text-lg font-bold text-white leading-none">{stat.value}</p>
+                <p className="text-[11px] text-slate-500 truncate">{stat.label}</p>
               </div>
-              <span className="text-sm text-slate-400">Promedio</span>
             </div>
-            <p className="text-3xl font-bold text-white">{avgScore}%</p>
-            <p className="text-xs text-slate-500 mt-1">Aciertos</p>
-          </div>
-          <div className="glass rounded-xl p-4 card-hover">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-success/20 flex items-center justify-center">
-                <Trophy className="w-5 h-5 text-success" />
-              </div>
-              <span className="text-sm text-slate-400">Mejor</span>
-            </div>
-            <p className="text-3xl font-bold text-white">{bestScore}%</p>
-            <p className="text-xs text-slate-500 mt-1">Puntuación</p>
-          </div>
-          <div className="glass rounded-xl p-4 card-hover">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-danger/20 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-danger" />
-              </div>
-              <span className="text-sm text-slate-400">Estudio</span>
-            </div>
-            <p className="text-3xl font-bold text-white">{studyHours}h</p>
-            <p className="text-xs text-slate-500 mt-1">Tiempo total</p>
-          </div>
+          ))}
         </motion.div>
 
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}
-          className="grid lg:grid-cols-2 gap-6 mb-8">
-          <div className="glass rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Hash className="w-5 h-5 text-gold" />
-              Cantidad de Preguntas
-            </h3>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { value: 10, label: 'Quiz Rápido', time: '15 min', icon: Zap },
-                { value: 50, label: 'Práctica', time: '75 min', icon: BookOpen },
-                { value: 100, label: 'Examen Oficial', time: '150 min', icon: Award }
-              ].map((opt) => (
-                <button key={opt.value} onClick={() => setSelectedQuestions(opt.value)}
-                  className={`p-4 rounded-xl border-2 transition-all duration-300 ${
-                    selectedQuestions === opt.value
-                      ? 'border-tactical-blue bg-tactical-blue/20'
-                      : 'border-navy-700 bg-navy-800/50 hover:border-navy-600'
+        {/* Accesos principales */}
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}>
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4 text-gold" />
+            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wide">¿Qué quieres hacer hoy?</h3>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {tiles.map(tile => (
+              <button
+                key={tile.id}
+                onClick={tile.onClick}
+                disabled={!tile.enabled}
+                className={`group relative aspect-square rounded-2xl border-2 p-4 sm:p-5 flex flex-col items-center justify-center text-center transition-all duration-300 ${
+                  tile.enabled
+                    ? `glass ${tile.accent} ${tile.hover} hover:-translate-y-1`
+                    : 'bg-navy-800/30 border-navy-800 opacity-55 cursor-not-allowed'
+                }`}
+              >
+                {tile.badge && (
+                  <span className={`absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                    tile.enabled ? 'bg-white/10 text-slate-200' : 'bg-navy-800 text-slate-500'
                   }`}>
-                  <opt.icon className={`w-6 h-6 mb-2 mx-auto ${selectedQuestions === opt.value ? 'text-tactical-blue-light' : 'text-slate-400'}`} />
-                  <p className="text-sm font-medium text-white">{opt.value}</p>
-                  <p className="text-xs text-slate-400">{opt.label}</p>
-                  <p className="text-xs text-gold mt-1">{opt.time}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="glass rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <BookMarked className="w-5 h-5 text-gold" />
-              Temas del Examen
-            </h3>
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              <button onClick={() => toggleCategory('all')}
-                className={`w-full p-3 rounded-lg border transition-all duration-300 flex items-center justify-between ${
-                  selectedCategories.includes('all')
-                    ? 'border-tactical-blue bg-tactical-blue/20'
-                    : 'border-navy-700 bg-navy-800/50 hover:border-navy-600'
-                }`}>
-                <span className="text-sm font-medium text-white">Todos los Temas</span>
-                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                  selectedCategories.includes('all') ? 'border-tactical-blue bg-tactical-blue' : 'border-slate-500'
-                }`}>
-                  {selectedCategories.includes('all') && <Check className="w-3 h-3 text-white" />}
+                    {tile.badge}
+                  </span>
+                )}
+                <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center mb-3 transition-transform duration-300 ${tile.iconBg} ${tile.enabled ? 'group-hover:scale-110' : ''} ${!tile.enabled ? 'grayscale' : ''}`}>
+                  {tile.enabled ? (
+                    <tile.icon className={`w-7 h-7 sm:w-8 sm:h-8 ${tile.iconColor}`} />
+                  ) : (
+                    <Lock className={`w-6 h-6 sm:w-7 sm:h-7 ${tile.iconColor}`} />
+                  )}
                 </div>
+                <p className={`font-bold text-sm sm:text-base leading-tight ${tile.enabled ? 'text-white' : 'text-slate-400'}`}>{tile.title}</p>
+                <p className="text-[10px] sm:text-xs text-slate-400 mt-1 leading-snug line-clamp-2 px-1">{tile.description}</p>
+                {tile.enabled && (
+                  <ArrowRight className="w-4 h-4 text-slate-500 mt-2 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                )}
               </button>
-              {availableCategories.map((cat) => {
-                const questionCount = questions.filter(q => q.category === cat).length;
-                return (
-                  <button key={cat} onClick={() => toggleCategory(cat)}
-                    className={`w-full p-3 rounded-lg border transition-all duration-300 flex items-center justify-between ${
-                      selectedCategories.includes(cat)
-                        ? 'border-tactical-blue bg-tactical-blue/20'
-                        : 'border-navy-700 bg-navy-800/50 hover:border-navy-600'
-                    }`}>
-                    <div className="flex-1 text-left">
-                      <span className="text-sm text-white block">{getCategoryDisplayName(getCategoryKey(cat))}</span>
-                      <span className="text-xs text-slate-500">{questionCount} preguntas</span>
-                    </div>
-                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                      selectedCategories.includes(cat) ? 'border-tactical-blue bg-tactical-blue' : 'border-slate-500'
-                    }`}>
-                      {selectedCategories.includes(cat) && <Check className="w-3 h-3 text-white" />}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            ))}
           </div>
         </motion.div>
 
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}
-          className="flex flex-col sm:flex-row gap-4 mb-8">
-          <button onClick={handleStart}
-            className="flex-1 py-4 bg-tactical-blue hover:bg-tactical-blue-dark text-white font-bold text-lg rounded-xl transition-all duration-300 btn-glow flex items-center justify-center gap-3">
-            <Play className="w-6 h-6" />
-            INICIAR SIMULADOR
-            <ArrowRight className="w-5 h-5" />
-          </button>
+        {/* Accesos secundarios */}
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }}
+          className="grid grid-cols-2 gap-3 mt-4">
           <button onClick={onViewHistory}
-            className="px-8 py-4 bg-navy-800 hover:bg-navy-700 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2">
-            <BarChart3 className="w-5 h-5" />
-            Ver Historial
+            className="glass rounded-xl px-4 py-3 flex items-center justify-center gap-2 text-sm text-slate-300 hover:text-white hover:border-navy-600 border border-navy-700 transition-colors">
+            <BarChart3 className="w-4 h-4 text-tactical-blue-light" />
+            Historial
           </button>
           <button onClick={onGoAnalytics}
-            className="px-8 py-4 bg-navy-800 hover:bg-navy-700 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2">
-            <TrendingUp className="w-5 h-5" />
+            className="glass rounded-xl px-4 py-3 flex items-center justify-center gap-2 text-sm text-slate-300 hover:text-white hover:border-navy-600 border border-navy-700 transition-colors">
+            <TrendingUp className="w-4 h-4 text-success" />
             Analytics
           </button>
         </motion.div>
 
-        {failedCount > 0 && (
-          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.32 }}
-            className="mb-8">
-            <button onClick={() => {
-              if (!onStartReinforcement()) {
-                localStorage.removeItem('simulador_failed_ids');
-                setFailedCount(0);
-              }
-            }}
-              className="w-full py-4 bg-gradient-to-r from-warning/20 to-gold/20 hover:from-warning/30 hover:to-gold/30 border border-warning/50 text-white font-bold text-lg rounded-xl transition-all duration-300 flex items-center justify-center gap-3">
-              <Brain className="w-6 h-6 text-gold" />
-              REFORZAMIENTO TACTICO 🔁🔥🧠
-              <span className="px-3 py-1 bg-danger/30 text-danger text-sm font-bold rounded-full">{failedCount}</span>
-            </button>
-            <p className="text-xs text-slate-500 text-center mt-2">
-              Repasa las {failedCount} pregunta{failedCount !== 1 ? 's' : ''} que fallaste en examenes anteriores
-            </p>
-          </motion.div>
-        )}
-
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.33 }}
-          className="mb-8">
-          <div className="glass rounded-xl p-3 sm:p-4 space-y-3">
-            {/* Boton RECONOCIMIENTO TACTICO */}
-            <button onClick={() => setOpenMode(openMode === 'recognition' ? null : 'recognition')}
-              className={`w-full rounded-xl p-4 flex items-center gap-4 text-left transition-all duration-300 border ${
-                openMode === 'recognition'
-                  ? 'border-tactical-blue bg-tactical-blue/20'
-                  : 'border-navy-700 bg-navy-800/50 hover:border-tactical-blue hover:bg-tactical-blue/5'
-              }`}>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-tactical-blue to-tactical-blue-dark flex items-center justify-center flex-shrink-0">
-                <span className="text-2xl">🔭</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-white text-base sm:text-lg leading-tight">RECONOCIMIENTO TACTICO</p>
-                <p className="text-xs text-slate-400 truncate">Entrena por tema o norma, sin presion de tiempo</p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className={`text-[11px] font-semibold px-2 py-1 rounded-md ${openMode === 'recognition' ? 'bg-tactical-blue/30 text-tactical-blue-light' : 'bg-navy-700 text-slate-300'}`}>
-                  {recognitionCategory ? getCategoryDisplayName(getCategoryKey(recognitionCategory)) : 'Todos'}
-                </span>
-                <ChevronDown className={`w-5 h-5 text-slate-300 transition-transform duration-300 ${openMode === 'recognition' ? 'rotate-180' : ''}`} />
-              </div>
-            </button>
-
-            {openMode === 'recognition' && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}
-                className="overflow-hidden">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-                  <button onClick={() => setRecognitionCategory(null)}
-                    className={`p-3 rounded-xl border text-left transition-all duration-300 group ${
-                      recognitionCategory === null
-                        ? 'border-tactical-blue bg-tactical-blue/15'
-                        : 'border-navy-700 bg-navy-800/50 hover:border-tactical-blue hover:bg-tactical-blue/5'
-                    }`}>
-                    <span className={`text-sm font-medium block ${recognitionCategory === null ? 'text-tactical-blue-light' : 'text-white group-hover:text-tactical-blue-light'}`}>
-                      📚 {recognitionCategory === null && <Check className="w-3.5 h-3.5 inline ml-1" />} Todos los Temas
-                    </span>
-                    <span className="text-xs text-slate-500">{questions.length} preguntas</span>
-                  </button>
-                  {availableCategories.map((cat) => {
-                    const count = questions.filter(q => q.category === cat).length;
-                    const isActive = recognitionCategory === cat;
-                    return (
-                      <button key={cat}
-                        onClick={() => setRecognitionCategory(cat)}
-                        className={`p-3 rounded-xl border text-left transition-all duration-300 group ${
-                          isActive
-                            ? 'border-tactical-blue bg-tactical-blue/15'
-                            : 'border-navy-700 bg-navy-800/50 hover:border-tactical-blue hover:bg-tactical-blue/5'
-                        }`}>
-                        <span className={`text-sm font-medium block ${isActive ? 'text-tactical-blue-light' : 'text-white group-hover:text-tactical-blue-light'}`}>
-                          ⚖️ {isActive && <Check className="w-3.5 h-3.5 inline ml-1" />} {getCategoryDisplayName(getCategoryKey(cat))}
-                        </span>
-                        <span className="text-xs text-slate-500">{count} preguntas</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <button onClick={() => onStartRecognition(recognitionCategory)}
-                  disabled={questions.length === 0}
-                  className="mt-3 w-full py-3 bg-gradient-to-r from-tactical-blue to-tactical-blue-dark hover:opacity-90 border border-tactical-blue-light/40 text-white font-bold rounded-xl transition-all duration-300 btn-glow flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                  <span className="text-lg">🔭</span>
-                  INICIAR RECONOCIMIENTO
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              </motion.div>
-            )}
-
-            <div className="h-px bg-navy-700/70" />
-
-            {/* Boton SIMULACRO COMPLETO POR TEMA */}
-            <button onClick={() => setOpenMode(openMode === 'simulacro' ? null : 'simulacro')}
-              className={`w-full rounded-xl p-4 flex items-center gap-4 text-left transition-all duration-300 border ${
-                openMode === 'simulacro'
-                  ? 'border-gold bg-gold/10'
-                  : 'border-navy-700 bg-navy-800/50 hover:border-gold hover:bg-gold/5'
-              }`}>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center flex-shrink-0">
-                <span className="text-2xl">📋</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-white text-base sm:text-lg leading-tight">SIMULACRO COMPLETO POR TEMA</p>
-                <p className="text-xs text-slate-400 truncate">Todas las preguntas del tema, 1.5 min cada una</p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-xs text-gold/70 hidden sm:block"><Clock className="w-4 h-4 inline mr-1" />1.5 min/preg</span>
-                <ChevronDown className={`w-5 h-5 text-slate-300 transition-transform duration-300 ${openMode === 'simulacro' ? 'rotate-180' : ''}`} />
-              </div>
-            </button>
-
-            {openMode === 'simulacro' && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}
-                className="overflow-hidden">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-                  {availableCategories.map((cat) => {
-                    const count = questions.filter(q => q.category === cat).length;
-                    const timeMin = Math.ceil(count * 1.5);
-                    return (
-                      <button key={cat}
-                        onClick={() => onStartExam({ numQuestions: count, categories: [cat] })}
-                        className="p-3 rounded-xl border border-navy-700 bg-navy-800/50 hover:border-gold hover:bg-gold/5 transition-all duration-300 text-left group">
-                        <span className="text-sm font-medium text-white group-hover:text-gold block">{getCategoryDisplayName(getCategoryKey(cat))}</span>
-                        <span className="text-xs text-slate-500">{count} preguntas</span>
-                        <span className="text-xs text-gold/70 ml-2">{timeMin >= 60 ? `${Math.floor(timeMin/60)}h ${timeMin%60}m` : `${timeMin}m`}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            )}
-
-            {audioEnabled && (
-              <>
-                <div className="h-px bg-navy-700/70" />
-
-                {/* Boton AUDIO TACTICO */}
-                <button onClick={() => setOpenMode(openMode === 'audio' ? null : 'audio')}
-                  className={`w-full rounded-xl p-4 flex items-center gap-4 text-left transition-all duration-300 border ${
-                    openMode === 'audio'
-                      ? 'border-gold bg-gold/10'
-                      : 'border-navy-700 bg-navy-800/50 hover:border-gold hover:bg-gold/5'
-                  }`}>
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center flex-shrink-0">
-                    <Headphones className="w-6 h-6 text-navy-900" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-white text-base sm:text-lg leading-tight">AUDIO TACTICO 🎧</p>
-                    <p className="text-xs text-slate-400 truncate">Escucha las preguntas por tema, sin mirar la pantalla</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-[11px] font-semibold px-2 py-1 rounded-md bg-gold/20 text-gold hidden sm:inline">Complemento</span>
-                    <ChevronDown className={`w-5 h-5 text-slate-300 transition-transform duration-300 ${openMode === 'audio' ? 'rotate-180' : ''}`} />
-                  </div>
-                </button>
-
-                {openMode === 'audio' && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}
-                    className="overflow-hidden">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-                      <div className="p-3 rounded-xl border border-navy-700 bg-navy-800/50 text-xs text-slate-400">
-                        🎧 Lee la pregunta, la respuesta correcta y el sustento legal
-                      </div>
-                      <div className="p-3 rounded-xl border border-navy-700 bg-navy-800/50 text-xs text-slate-400">
-                        📚 Organizado por las mismas materias del examen
-                      </div>
-                      <div className="p-3 rounded-xl border border-navy-700 bg-navy-800/50 text-xs text-slate-400">
-                        🚗 Ideal para repasar en el carro o caminando
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-500 mt-2">
-                      Sesiones de 10, 20 o todas las preguntas, con velocidad ajustable y progreso guardado por tema.
-                    </p>
-                    <button onClick={onGoAudio}
-                      className="mt-3 w-full py-3 bg-gradient-to-r from-gold to-gold-dark hover:opacity-90 border border-gold/40 text-navy-900 font-bold rounded-xl transition-all duration-300 btn-glow flex items-center justify-center gap-2">
-                      <Headphones className="w-5 h-5" />
-                      ABRIR AUDIO TACTICO
-                      <ArrowRight className="w-5 h-5" />
-                    </button>
-                  </motion.div>
-                )}
-              </>
-            )}
-          </div>
-        </motion.div>
+        <p className="text-center text-xs text-slate-600 mt-6 flex items-center justify-center gap-1.5">
+          <PlayCircle className="w-3.5 h-3.5" />
+          Cada repaso te acerca al ascenso
+        </p>
       </div>
 
       <AnimatePresence>

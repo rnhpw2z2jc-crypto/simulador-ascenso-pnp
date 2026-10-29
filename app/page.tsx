@@ -12,6 +12,8 @@ import { useSessionTimeout } from '../lib/useSessionTimeout';
 import { safeGetJSON, safeSetJSON, safeRemove } from '../lib/storage';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { hasAudioAccess } from '../components/types';
+import type { FeatureMode } from '../components/DashboardPage';
+import type { ThemeMode, ThemeSelection } from '../components/ThemeSelectPage';
 import type { ExamConfig, ExamState, ExamResult, User, Question } from '../components/types';
 
 const LoginPage = dynamic(() => import('../components/LoginPage'), { ssr: false, loading: () => <SplashLoader /> });
@@ -26,6 +28,7 @@ const ProfilePage = dynamic(() => import('../components/ProfilePage'), { ssr: fa
 const AnalyticsPage = dynamic(() => import('../components/AnalyticsPage'), { ssr: false });
 const RecognitionPage = dynamic(() => import('../components/RecognitionPage'), { ssr: false });
 const AudioTacticoPage = dynamic(() => import('../components/AudioTacticoPage'), { ssr: false });
+const ThemeSelectPage = dynamic(() => import('../components/ThemeSelectPage'), { ssr: false });
 
 function SplashLoader() {
   return (
@@ -44,7 +47,9 @@ function SplashLoader() {
 }
 
 export default function Home() {
-  const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'dashboard' | 'config' | 'exam' | 'results' | 'history' | 'admin' | 'profile' | 'analytics' | 'recognition' | 'audio'>('login');
+  const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'dashboard' | 'themes' | 'config' | 'exam' | 'results' | 'history' | 'admin' | 'profile' | 'analytics' | 'recognition' | 'audio'>('login');
+  const [themeMode, setThemeMode] = useState<ThemeMode>('simulacro');
+  const [audioCategory, setAudioCategory] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [examConfig, setExamConfig] = useState<ExamConfig | null>(null);
   const [examState, setExamState] = useState<ExamState | null>(null);
@@ -267,7 +272,7 @@ export default function Home() {
     setCurrentPage('results');
   };
 
-  if (questionsLoading && (currentPage === 'config' || currentPage === 'exam' || currentPage === 'dashboard' || currentPage === 'audio')) {
+  if (questionsLoading && (currentPage === 'themes' || currentPage === 'config' || currentPage === 'exam' || currentPage === 'dashboard' || currentPage === 'audio')) {
     return (
       <div className="min-h-screen bg-navy-900 flex items-center justify-center">
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
@@ -318,10 +323,11 @@ export default function Home() {
             user={user} 
             questions={questions}
             onRefreshUser={refreshUserData}
-            onStartExam={startExam}
+            onPickMode={(mode: FeatureMode) => {
+              setThemeMode(mode);
+              setCurrentPage('themes');
+            }}
             onStartReinforcement={startReinforcement}
-            onStartRecognition={startRecognition}
-            onGoAudio={() => setCurrentPage('audio')}
             pausedExam={pausedExam}
             onResumeExam={resumeExam}
             onViewHistory={() => setCurrentPage('history')}
@@ -333,6 +339,26 @@ export default function Home() {
             onInstall={install}
             hasUpdate={hasUpdate}
             onApplyUpdate={applyUpdate}
+          />
+        )}
+        {currentPage === 'themes' && user && (
+          <ThemeSelectPage
+            key="themes"
+            mode={themeMode}
+            questions={questions}
+            onBack={() => setCurrentPage('dashboard')}
+            onConfirm={(selection: ThemeSelection) => {
+              if (themeMode === 'simulacro') {
+                startExam({ numQuestions: selection.numQuestions, categories: selection.categories });
+                return;
+              }
+              if (themeMode === 'recognition') {
+                startRecognition(selection.category);
+                return;
+              }
+              setAudioCategory(selection.category);
+              setCurrentPage('audio');
+            }}
           />
         )}
         {currentPage === 'config' && examConfig && (
@@ -368,6 +394,8 @@ export default function Home() {
           <AudioTacticoPage
             key="audio"
             questions={questions}
+            initialCategory={audioCategory}
+            onChangeTheme={() => setCurrentPage('themes')}
             onBack={() => setCurrentPage('dashboard')}
           />
         )}
