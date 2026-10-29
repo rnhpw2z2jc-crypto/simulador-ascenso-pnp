@@ -15,6 +15,8 @@ import type { User as UserType, ExamResult, Question, ExamState } from './types'
 
 const MOTIVATIONAL_ENABLED = true;
 const BUILD_SHA = process.env.NEXT_PUBLIC_BUILD_SHA?.slice(0, 7) || '';
+const BUILD_TIME = process.env.NEXT_PUBLIC_BUILD_TIME || '';
+const BUILD_LABEL = BUILD_SHA || (BUILD_TIME ? `${BUILD_TIME.slice(8, 10)}/${BUILD_TIME.slice(5, 7)}` : '');
 
 let motivationalShownThisLoad = false;
 
@@ -411,7 +413,7 @@ export default function DashboardPage({
         <p className="text-center text-xs text-slate-600 mt-6 flex items-center justify-center gap-1.5">
           <PlayCircle className="w-3.5 h-3.5" />
           Cada repaso te acerca al ascenso
-          {BUILD_SHA && <span className="text-slate-700">· {BUILD_SHA}</span>}
+          {BUILD_LABEL && <span className="text-slate-700">· {BUILD_LABEL}</span>}
         </p>
       </div>
 

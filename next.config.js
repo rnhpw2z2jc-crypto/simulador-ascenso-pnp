@@ -12,6 +12,7 @@ const nextConfig = {
   reactStrictMode: true,
   env: {
     NEXT_PUBLIC_BUILD_SHA: process.env.VERCEL_GIT_COMMIT_SHA || '',
+    NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
   },
   async headers() {
     return [
