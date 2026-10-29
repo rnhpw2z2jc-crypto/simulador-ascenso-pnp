@@ -8,6 +8,11 @@ export interface Question {
   legalBasis?: string;
 }
 
+export interface UserFeatures {
+  /** Audio Tactico: escuchar las preguntas por temas */
+  audio?: boolean;
+}
+
 export interface User {
   id: string;
   username: string;
@@ -20,8 +25,15 @@ export interface User {
   status: 'active' | 'expired' | 'blocked';
   devices: string[];
   maxDevices: number;
+  features?: UserFeatures;
   online?: boolean;
   lastSeen?: number | null;
+}
+
+/** El audio es un complemento del plan. El admin siempre puede probarlo. */
+export function hasAudioAccess(user: Pick<User, 'role' | 'features'> | null | undefined): boolean {
+  if (!user) return false;
+  return user.role === 'admin' || !!user.features?.audio;
 }
 
 export interface ExamConfig {

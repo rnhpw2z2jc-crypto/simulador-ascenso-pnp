@@ -11,6 +11,7 @@ import { useQuestions } from '../components/useQuestions';
 import { useSessionTimeout } from '../lib/useSessionTimeout';
 import { safeGetJSON, safeSetJSON, safeRemove } from '../lib/storage';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { hasAudioAccess } from '../components/types';
 import type { ExamConfig, ExamState, ExamResult, User, Question } from '../components/types';
 
 const LoginPage = dynamic(() => import('../components/LoginPage'), { ssr: false, loading: () => <SplashLoader /> });
@@ -24,6 +25,7 @@ const AdminPage = dynamic(() => import('../components/AdminPage'), { ssr: false 
 const ProfilePage = dynamic(() => import('../components/ProfilePage'), { ssr: false });
 const AnalyticsPage = dynamic(() => import('../components/AnalyticsPage'), { ssr: false });
 const RecognitionPage = dynamic(() => import('../components/RecognitionPage'), { ssr: false });
+const AudioTacticoPage = dynamic(() => import('../components/AudioTacticoPage'), { ssr: false });
 
 function SplashLoader() {
   return (
@@ -42,7 +44,7 @@ function SplashLoader() {
 }
 
 export default function Home() {
-  const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'dashboard' | 'config' | 'exam' | 'results' | 'history' | 'admin' | 'profile' | 'analytics' | 'recognition'>('login');
+  const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'dashboard' | 'config' | 'exam' | 'results' | 'history' | 'admin' | 'profile' | 'analytics' | 'recognition' | 'audio'>('login');
   const [user, setUser] = useState<User | null>(null);
   const [examConfig, setExamConfig] = useState<ExamConfig | null>(null);
   const [examState, setExamState] = useState<ExamState | null>(null);
@@ -265,7 +267,7 @@ export default function Home() {
     setCurrentPage('results');
   };
 
-  if (questionsLoading && (currentPage === 'config' || currentPage === 'exam' || currentPage === 'dashboard')) {
+  if (questionsLoading && (currentPage === 'config' || currentPage === 'exam' || currentPage === 'dashboard' || currentPage === 'audio')) {
     return (
       <div className="min-h-screen bg-navy-900 flex items-center justify-center">
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
@@ -319,6 +321,7 @@ export default function Home() {
             onStartExam={startExam}
             onStartReinforcement={startReinforcement}
             onStartRecognition={startRecognition}
+            onGoAudio={() => setCurrentPage('audio')}
             pausedExam={pausedExam}
             onResumeExam={resumeExam}
             onViewHistory={() => setCurrentPage('history')}
@@ -358,6 +361,13 @@ export default function Home() {
           <RecognitionPage
             key="recognition"
             questions={recognitionQuestions}
+            onBack={() => setCurrentPage('dashboard')}
+          />
+        )}
+        {currentPage === 'audio' && user && hasAudioAccess(user) && (
+          <AudioTacticoPage
+            key="audio"
+            questions={questions}
             onBack={() => setCurrentPage('dashboard')}
           />
         )}

@@ -5,10 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, Settings, User, LogOut, FileText, Target, Trophy, Clock, 
   Hash, BookMarked, Zap, BookOpen, Award, Check, Play, ArrowRight, 
-  BarChart3, Brain, Download, AlertTriangle, TrendingUp, ChevronDown 
+  BarChart3, Brain, Download, AlertTriangle, TrendingUp, ChevronDown, Headphones 
 } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
 import { safeGetJSON } from '../lib/storage';
+import { hasAudioAccess } from './types';
 import MotivationalPopup from './MotivationalPopup';
 import type { User as UserType, ExamConfig, ExamResult, Question, ExamState } from './types';
 
@@ -16,13 +17,14 @@ const MOTIVATIONAL_ENABLED = true;
 
 let motivationalShownThisLoad = false;
 
-export default function DashboardPage({ user, questions, onRefreshUser, onStartExam, onStartReinforcement, onStartRecognition, onViewHistory, onGoAnalytics, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate, pausedExam, onResumeExam }: {
+export default function DashboardPage({ user, questions, onRefreshUser, onStartExam, onStartReinforcement, onStartRecognition, onGoAudio, onViewHistory, onGoAnalytics, onLogout, onGoAdmin, onGoProfile, isInstallable, onInstall, hasUpdate, onApplyUpdate, pausedExam, onResumeExam }: {
   user: UserType;
   questions: Question[];
   onRefreshUser: (username: string) => Promise<void>;
   onStartExam: (config: ExamConfig) => void;
   onStartReinforcement: () => boolean;
   onStartRecognition: (category: string | null) => void;
+  onGoAudio: () => void;
   onViewHistory: () => void;
   onGoAnalytics: () => void;
   onLogout: () => void;
@@ -39,7 +41,8 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['all']);
   const [failedCount, setFailedCount] = useState(0);
   const [recognitionCategory, setRecognitionCategory] = useState<string | null>(null);
-  const [openMode, setOpenMode] = useState<'recognition' | 'simulacro' | null>('recognition');
+  const [openMode, setOpenMode] = useState<'recognition' | 'simulacro' | 'audio' | null>('recognition');
+  const audioEnabled = hasAudioAccess(user);
 
   useEffect(() => {
     const failedIds = safeGetJSON<number[]>('simulador_failed_ids', []);
@@ -505,6 +508,58 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
                   })}
                 </div>
               </motion.div>
+            )}
+
+            {audioEnabled && (
+              <>
+                <div className="h-px bg-navy-700/70" />
+
+                {/* Boton AUDIO TACTICO */}
+                <button onClick={() => setOpenMode(openMode === 'audio' ? null : 'audio')}
+                  className={`w-full rounded-xl p-4 flex items-center gap-4 text-left transition-all duration-300 border ${
+                    openMode === 'audio'
+                      ? 'border-gold bg-gold/10'
+                      : 'border-navy-700 bg-navy-800/50 hover:border-gold hover:bg-gold/5'
+                  }`}>
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center flex-shrink-0">
+                    <Headphones className="w-6 h-6 text-navy-900" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-white text-base sm:text-lg leading-tight">AUDIO TACTICO 🎧</p>
+                    <p className="text-xs text-slate-400 truncate">Escucha las preguntas por tema, sin mirar la pantalla</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-[11px] font-semibold px-2 py-1 rounded-md bg-gold/20 text-gold hidden sm:inline">Complemento</span>
+                    <ChevronDown className={`w-5 h-5 text-slate-300 transition-transform duration-300 ${openMode === 'audio' ? 'rotate-180' : ''}`} />
+                  </div>
+                </button>
+
+                {openMode === 'audio' && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }}
+                    className="overflow-hidden">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                      <div className="p-3 rounded-xl border border-navy-700 bg-navy-800/50 text-xs text-slate-400">
+                        🎧 Lee la pregunta, las opciones, la respuesta y el sustento legal
+                      </div>
+                      <div className="p-3 rounded-xl border border-navy-700 bg-navy-800/50 text-xs text-slate-400">
+                        📚 Organizado por las mismas materias del examen
+                      </div>
+                      <div className="p-3 rounded-xl border border-navy-700 bg-navy-800/50 text-xs text-slate-400">
+                        🚗 Ideal para repasar en el carro o caminando
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2">
+                      Sesiones de 10, 20 o todas las preguntas, con velocidad ajustable y progreso guardado por tema.
+                    </p>
+                    <button onClick={onGoAudio}
+                      className="mt-3 w-full py-3 bg-gradient-to-r from-gold to-gold-dark hover:opacity-90 border border-gold/40 text-navy-900 font-bold rounded-xl transition-all duration-300 btn-glow flex items-center justify-center gap-2">
+                      <Headphones className="w-5 h-5" />
+                      ABRIR AUDIO TACTICO
+                      <ArrowRight className="w-5 h-5" />
+                    </button>
+                  </motion.div>
+                )}
+              </>
             )}
           </div>
         </motion.div>

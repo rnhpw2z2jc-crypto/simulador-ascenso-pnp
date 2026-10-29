@@ -2,13 +2,15 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { Headphones, Check } from 'lucide-react';
 import type { User } from './types';
 
 export default function EditUserModal({ user, onClose, onSave }: { user: User; onClose: () => void; onSave: (u: User, newPassword?: string) => void }) {
   const [form, setForm] = useState({
     nombre: user.nombre, apellido: user.apellido, email: user.email,
     password: '', membership: '' as '' | 'free' | 'vip',
-    maxDevices: user.maxDevices
+    maxDevices: user.maxDevices,
+    audio: !!user.features?.audio
   });
 
   const VIP_EXPIRY = new Date(2026, 11, 31, 23, 59, 59, 999).toISOString();
@@ -34,6 +36,7 @@ export default function EditUserModal({ user, onClose, onSave }: { user: User; o
       membershipExpiry: expiry,
       maxDevices,
       devices,
+      features: { ...user.features, audio: form.audio },
     }, form.password || undefined);
   };
 
@@ -120,6 +123,26 @@ export default function EditUserModal({ user, onClose, onSave }: { user: User; o
             {form.maxDevices === 1 && user.devices.length > 1 && (
               <p className="text-xs text-warning mt-1">Se liberara el dispositivo sobrante (quedan {user.devices.length - 1} vinculado).</p>
             )}
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Funcionalidades adicionales</label>
+            <button type="button" onClick={() => setForm({ ...form, audio: !form.audio })}
+              className={`w-full p-3 rounded-lg border flex items-center justify-between gap-3 transition-colors ${
+                form.audio ? 'border-gold bg-gold/10' : 'border-navy-700 bg-navy-800/50 hover:border-navy-600'
+              }`}>
+              <span className="flex items-center gap-2 text-left">
+                <Headphones className={`w-4 h-4 flex-shrink-0 ${form.audio ? 'text-gold' : 'text-slate-400'}`} />
+                <span>
+                  <span className={`block text-sm font-medium ${form.audio ? 'text-gold' : 'text-white'}`}>Modo Audio 🎧</span>
+                  <span className="block text-[11px] text-slate-500">Audio Tactico: preguntas por tema en voz alta</span>
+                </span>
+              </span>
+              <span className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                form.audio ? 'border-gold bg-gold' : 'border-slate-500'
+              }`}>
+                {form.audio && <Check className="w-3 h-3 text-navy-900" />}
+              </span>
+            </button>
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors">Cancelar</button>

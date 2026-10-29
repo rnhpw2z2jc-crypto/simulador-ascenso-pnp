@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Headphones, Check } from 'lucide-react';
 import { hashPassword } from '../lib/password';
 import { sanitizeUserInput, validateUsername, validateEmail } from '../lib/security';
 import { getAllUsersPublic } from '../lib/users';
@@ -10,7 +11,8 @@ import type { User } from './types';
 export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; onAdd: (u: User, password: string) => void }) {
   const [form, setForm] = useState({
     username: '', password: '', nombre: '', apellido: '', email: '',
-    membership: 'free' as 'free' | 'vip'
+    membership: 'free' as 'free' | 'vip',
+    audio: false
   });
   const [error, setError] = useState('');
   const [existingUsernames, setExistingUsernames] = useState<string[]>([]);
@@ -75,6 +77,7 @@ export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; 
       status: 'active',
       devices: [],
       maxDevices: 1,
+      features: { audio: form.audio },
     }, hashedPassword);
   };
 
@@ -133,6 +136,26 @@ export default function AddUserModal({ onClose, onAdd }: { onClose: () => void; 
               </button>
             </div>
             <p className="text-xs text-slate-600 mt-1">FREE = 12 horas de prueba. VIP = acceso hasta el 31/12/2026.</p>
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Funcionalidades adicionales</label>
+            <button type="button" onClick={() => setForm({ ...form, audio: !form.audio })}
+              className={`w-full p-3 rounded-lg border flex items-center justify-between gap-3 transition-colors ${
+                form.audio ? 'border-gold bg-gold/10' : 'border-navy-700 bg-navy-800/50 hover:border-navy-600'
+              }`}>
+              <span className="flex items-center gap-2 text-left">
+                <Headphones className={`w-4 h-4 flex-shrink-0 ${form.audio ? 'text-gold' : 'text-slate-400'}`} />
+                <span>
+                  <span className={`block text-sm font-medium ${form.audio ? 'text-gold' : 'text-white'}`}>Modo Audio 🎧</span>
+                  <span className="block text-[11px] text-slate-500">Audio Tactico: preguntas por tema en voz alta</span>
+                </span>
+              </span>
+              <span className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                form.audio ? 'border-gold bg-gold' : 'border-slate-500'
+              }`}>
+                {form.audio && <Check className="w-3 h-3 text-navy-900" />}
+              </span>
+            </button>
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-navy-700 hover:bg-navy-600 text-white rounded-lg transition-colors">Cancelar</button>

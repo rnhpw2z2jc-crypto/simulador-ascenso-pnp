@@ -4,6 +4,10 @@ import {
 } from 'firebase/firestore';
 import { hashPassword, verifyPassword, isBcryptHash } from './password';
 
+export interface UserFeatures {
+  audio?: boolean;
+}
+
 export interface UserData {
   id: string;
   username: string;
@@ -17,6 +21,7 @@ export interface UserData {
   status: 'active' | 'expired' | 'blocked';
   devices: string[];
   maxDevices: number;
+  features?: UserFeatures;
   online?: boolean;
   lastSeen?: number | null;
 }
@@ -33,7 +38,8 @@ function normalizeUser(u: UserData): UserData {
   }
   devices = Array.from(new Set(devices)).slice(0, 2);
   const maxDevices = typeof u.maxDevices === 'number' ? Math.min(2, Math.max(1, Math.round(u.maxDevices))) : DEFAULT_MAX_DEVICES;
-  return { ...u, devices, maxDevices };
+  const features: UserFeatures = { ...(u.features || {}), audio: !!u.features?.audio };
+  return { ...u, devices, maxDevices, features };
 }
 
 export async function getAllUsers(): Promise<UserData[]> {

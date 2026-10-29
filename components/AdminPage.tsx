@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Settings, Users, FileText, Target, Search, Home as HomeIcon, 
-  Loader2, User, Info 
+  Loader2, User, Info, Headphones 
 } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
 import { seedDefaultAdmin, getAllUsersPublic, createUser, updateUser, deleteUser, getUserByUsername } from '../lib/users';
@@ -134,6 +134,22 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
       setTimeout(() => setMsg(''), 3000);
     } catch {
       setMsg('Error al actualizar');
+      setTimeout(() => setMsg(''), 3000);
+    }
+  };
+
+  const handleToggleAudio = async (id: string) => {
+    const target = users.find(u => u.id === id);
+    if (!target) return;
+    const features = { ...target.features, audio: !target.features?.audio };
+    try {
+      const fullUser = await getUserByUsername(target.username);
+      if (fullUser) await updateUser({ ...fullUser, features });
+      setUsers(users.map(u => u.id === id ? { ...u, features } : u));
+      setMsg(`Modo Audio ${features.audio ? 'activado' : 'desactivado'} para ${target.username}`);
+      setTimeout(() => setMsg(''), 3000);
+    } catch {
+      setMsg('Error al actualizar el modo audio');
       setTimeout(() => setMsg(''), 3000);
     }
   };
@@ -403,6 +419,7 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
                         {isOnline(u) ? 'En linea' : lastSeenLabel(u)}
                       </span>
                       {u.role === 'admin' && <span className="px-2 py-0.5 bg-gold/20 text-gold text-xs rounded">ADMIN</span>}
+                      {u.features?.audio && <span className="px-2 py-0.5 bg-gold/20 text-gold text-xs rounded">🎧 AUDIO</span>}
                       {u.status === 'blocked' && <span className="px-2 py-0.5 bg-danger/20 text-danger text-xs rounded">BLOQUEADO</span>}
                       {expired && <span className="px-2 py-0.5 bg-warning/20 text-warning text-xs rounded">EXPIRADO</span>}
                     </div>
@@ -438,6 +455,13 @@ export default function AdminPage({ currentUser, questions, onBack }: { currentU
                   </div>
                   <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 flex-shrink-0">
                     <button onClick={() => setEditUser(u)} className="px-3 py-1.5 bg-navy-700 hover:bg-navy-600 text-xs text-white rounded-lg transition-colors">Editar</button>
+                    <button onClick={() => handleToggleAudio(u.id)}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors flex items-center justify-center gap-1 ${
+                        u.features?.audio ? 'bg-gold/20 text-gold hover:bg-gold/40' : 'bg-navy-700 text-slate-400 hover:bg-navy-600'
+                      }`}
+                      title={u.features?.audio ? 'Desactivar Audio Tactico' : 'Activar Audio Tactico'}>
+                      <Headphones className="w-3.5 h-3.5" /> Audio
+                    </button>
                     <button onClick={() => handleUnlockAll(u.id)}
                       className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
                         u.devices.length > 0 ? 'bg-gold/20 text-gold hover:bg-gold/40' : 'bg-navy-700 text-slate-500'
