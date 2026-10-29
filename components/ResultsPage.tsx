@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Shield, Check, X, Filter, Brain, Home as HomeIcon, 
-  CheckCircle2, XCircle 
+  CheckCircle2, XCircle, Scale 
 } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
+import { formatLegalBasis } from '../lib/legalBasis';
 import type { ExamResult } from './types';
 
 export default function ResultsPage({ result, onBack, onStartReinforcement }: { result: ExamResult; onBack: () => void; onStartReinforcement: () => boolean }) {
@@ -151,6 +152,7 @@ export default function ResultsPage({ result, onBack, onStartReinforcement }: { 
         <div className="space-y-4">
           {filtered.map(({ q, i, isCorrect }, filterIdx) => {
             const userAnswer = result.answers[i];
+            const legalBasis = formatLegalBasis(q.legalBasis);
             
             return (
               <motion.div
@@ -204,9 +206,18 @@ export default function ResultsPage({ result, onBack, onStartReinforcement }: { 
                     <div className="p-3 bg-navy-800/30 rounded-lg">
                       <p className="text-xs text-gold font-medium mb-1">Explicacion:</p>
                       <p className="text-sm text-slate-300">{q.explanation}</p>
-                      {q.legalBasis && (
-                        <p className="text-xs text-slate-500 mt-1">Legislacion: {q.legalBasis}</p>
-                      )}
+                      <div className="mt-3 pt-3 border-t border-white/10 flex items-start gap-2">
+                        <Scale className="w-4 h-4 text-gold flex-shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <p className="text-[11px] uppercase tracking-wide text-gold font-semibold">Sustento legal</p>
+                          <p className="text-sm text-white font-medium mt-0.5">
+                            {getCategoryDisplayName(getCategoryKey(q.category))}
+                          </p>
+                          {legalBasis && (
+                            <p className="text-xs text-slate-400 mt-0.5">{legalBasis}</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

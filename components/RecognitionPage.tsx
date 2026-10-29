@@ -2,8 +2,9 @@
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Flag, Home, Check, X, BookOpen, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, Home, Check, X, BookOpen, RefreshCw, Scale } from 'lucide-react';
 import { getCategoryKey, getCategoryDisplayName } from '../lib/categoryUtils';
+import { formatLegalBasis } from '../lib/legalBasis';
 import type { Question } from './types';
 
 export default function RecognitionPage({ questions, onBack }: {
@@ -17,8 +18,10 @@ export default function RecognitionPage({ questions, onBack }: {
 
   const currentQ = questions[order[currentIndex]];
   const isAnswered = selected !== null;
-  const isCorrect = isAnswered && selected === currentQ.correctAnswer;
+  const isCorrect = isAnswered && selected === currentQ?.correctAnswer;
   const answeredCount = order.filter((_, i) => i < currentIndex && selected !== null).length;
+  const normName = currentQ ? getCategoryDisplayName(getCategoryKey(currentQ.category)) : '';
+  const legalBasis = formatLegalBasis(currentQ?.legalBasis);
 
   const handleSelect = (answerIndex: number) => {
     if (isAnswered) return;
@@ -154,11 +157,24 @@ export default function RecognitionPage({ questions, onBack }: {
                     </span>
                   </div>
                   <p className="text-sm text-slate-300">{currentQ.explanation}</p>
-                  {currentQ.legalBasis && (
-                    <p className="text-xs text-slate-500 mt-2">
-                      Base legal: {currentQ.legalBasis}
+                  {!isCorrect && (
+                    <p className="text-sm text-slate-300 mt-1">
+                      <span className="text-white font-medium">Respuesta correcta:</span>{' '}
+                      {String.fromCharCode(65 + currentQ.correctAnswer)}) {currentQ.options[currentQ.correctAnswer]}
                     </p>
                   )}
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <div className="flex items-start gap-2">
+                      <Scale className="w-4 h-4 text-gold flex-shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <p className="text-[11px] uppercase tracking-wide text-gold font-semibold">Sustento legal</p>
+                        <p className="text-sm text-white font-medium mt-0.5">{normName}</p>
+                        {legalBasis && (
+                          <p className="text-xs text-slate-400 mt-0.5">{legalBasis}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </motion.div>
               )}
             </motion.div>
