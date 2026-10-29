@@ -42,6 +42,9 @@ export default function DashboardPage({
   onResumeExam: () => void;
 }) {
   const [failedCount, setFailedCount] = useState(0);
+  // Esta pantalla es la misma para todas las cuentas (admin y usuarios).
+  // Lo unico que depende del panel admin es el Modo Audio: el admin puede
+  // activarlo o desactivarlo por usuario, y su propia cuenta siempre lo tiene.
   const audioEnabled = hasAudioAccess(user);
 
   useEffect(() => {
@@ -130,7 +133,7 @@ export default function DashboardPage({
       title: 'Audio Táctico',
       description: audioEnabled
         ? 'Escucha pregunta, respuesta y sustento legal'
-        : 'Complemento no activado en tu cuenta',
+        : 'Pide al administrador activar el Modo Audio',
       icon: Headphones,
       badge: audioEnabled ? 'Complemento' : 'Bloqueado',
       enabled: audioEnabled,
