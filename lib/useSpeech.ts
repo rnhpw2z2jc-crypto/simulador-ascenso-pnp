@@ -71,9 +71,14 @@ export function useSpeech(): UseSpeech {
       setVoices(all);
       setVoiceURIState(prev => {
         if (prev && all.some(v => v.voiceURI === prev)) return prev;
+        const femaleHint = /paulina|sabina|m[oó]nica|helena|laura|luc[ií]a|isabela|camila|marisol|female/i;
+        const mx = all.filter(v => /^es[-_]MX/i.test(v.lang));
         const pick =
-          all.find(v => /^es[-_]PE/i.test(v.lang)) ||
+          mx.find(v => femaleHint.test(v.name)) ||
+          mx[0] ||
           all.find(v => /^es[-_]419/i.test(v.lang)) ||
+          all.find(v => /^es[-_]US/i.test(v.lang)) ||
+          all.find(v => /^es[-_]PE/i.test(v.lang)) ||
           all.find(v => /^es[-_]ES/i.test(v.lang)) ||
           all.find(v => /^es/i.test(v.lang)) ||
           all[0];
@@ -112,7 +117,7 @@ export function useSpeech(): UseSpeech {
     utterance.rate = rateRef.current;
     utterance.pitch = 1;
     utterance.volume = 1;
-    utterance.lang = 'es-PE';
+    utterance.lang = 'es-MX';
 
     const voice = synth.getVoices().find(v => v.voiceURI === voiceRef.current);
     if (voice) {
@@ -238,7 +243,7 @@ export function useSpeech(): UseSpeech {
   }, []);
 
   const setRate = useCallback((value: number) => {
-    const clamped = Math.min(1.5, Math.max(0.8, Math.round(value * 10) / 10));
+    const clamped = Math.min(1, Math.max(0.5, Math.round(value * 10) / 10));
     setRateState(clamped);
     rateRef.current = clamped;
   }, []);

@@ -18,7 +18,7 @@ const LETTERS = 'ABCDEFGHIJ';
 type ProgressMap = Record<string, number>;
 type StudyMode = 'estudio' | 'evaluacion';
 
-const RATES = [0.8, 1, 1.2, 1.5];
+const RATES = [0.5, 0.8, 1];
 
 function letterAt(i: number): string {
   return LETTERS[i] || String(i + 1);

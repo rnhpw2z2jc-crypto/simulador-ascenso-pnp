@@ -325,8 +325,8 @@ export default function Home() {
             questions={questions}
             onRefreshUser={refreshUserData}
             onPickMode={(mode: FeatureMode) => {
-              setThemeMode('simulacro');
               setThemeFull(mode === 'repaso');
+              setThemeMode(mode === 'repaso' ? 'simulacro' : mode);
               setCurrentPage('themes');
             }}
             onStartReinforcement={startReinforcement}
