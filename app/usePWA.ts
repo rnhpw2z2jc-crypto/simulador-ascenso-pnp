@@ -11,19 +11,43 @@ export function usePWA() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    let removeVisibilityCheck: (() => void) | undefined;
+
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js').then((reg) => {
-        reg.onupdatefound = () => {
-          const newWorker = reg.installing;
-          if (newWorker) {
+      const launchedAt = Date.now();
+      const AUTO_ACTIVATE_WINDOW_MS = 45000;
+
+      // Al abrir la app se puede aplicar la version nueva sin interrumpir
+      // un examen en curso. Pasada la ventana, se muestra el aviso normal.
+      const activateIfJustLaunched = (worker: ServiceWorker | null) => {
+        if (!worker) return;
+        if (Date.now() - launchedAt <= AUTO_ACTIVATE_WINDOW_MS) {
+          worker.postMessage({ type: 'SKIP_WAITING' });
+        }
+      };
+
+      navigator.serviceWorker
+        .register('/service-worker.js', { updateViaCache: 'none' })
+        .then((reg) => {
+          // Si quedo una version esperando (tipico en iPhone), se activa ya.
+          if (reg.waiting) activateIfJustLaunched(reg.waiting);
+
+          reg.onupdatefound = () => {
+            const newWorker = reg.installing;
+            if (!newWorker) return;
             newWorker.onstatechange = () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              if (newWorker.state !== 'installed') return;
+              if (navigator.serviceWorker.controller) {
                 setHasUpdate(true);
+                activateIfJustLaunched(newWorker);
               }
             };
-          }
-        };
-      }).catch(() => {});
+          };
+
+          // Safari no siempre busca actualizaciones solo: se fuerza aqui.
+          reg.update().catch(() => {});
+        })
+        .catch(() => {});
 
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -32,6 +56,18 @@ export function usePWA() {
           window.location.reload();
         }
       });
+
+      const checkForUpdate = () => {
+        if (document.visibilityState !== 'visible') return;
+        navigator.serviceWorker.getRegistration().then((reg) => {
+          if (!reg) return;
+          if (reg.waiting) setHasUpdate(true);
+          reg.update().catch(() => {});
+        }).catch(() => {});
+      };
+
+      document.addEventListener('visibilitychange', checkForUpdate);
+      removeVisibilityCheck = () => document.removeEventListener('visibilitychange', checkForUpdate);
     }
 
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
@@ -55,6 +91,7 @@ export function usePWA() {
     window.addEventListener('appinstalled', installedHandler);
 
     return () => {
+      removeVisibilityCheck?.();
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('appinstalled', installedHandler);
     };

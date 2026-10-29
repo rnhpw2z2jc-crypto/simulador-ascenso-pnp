@@ -1,4 +1,4 @@
-const CACHE_NAME = 'simulador-pnp-v8';
+const CACHE_NAME = 'simulador-pnp-v9';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -43,7 +43,9 @@ self.addEventListener('fetch', (event) => {
 
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
+      // Sin cache HTTP: en iPhone/Safari el HTML viejo puede quedar pegado.
+      // Si falla la red, se usa la copia en cache (modo offline).
+      fetch(new Request(event.request, { cache: 'no-store' }))
         .then((response) => {
           if (response && response.status === 200) {
             const clone = response.clone();

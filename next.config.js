@@ -10,8 +10,27 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: true,
+  env: {
+    NEXT_PUBLIC_BUILD_SHA: process.env.VERCEL_GIT_COMMIT_SHA || '',
+  },
   async headers() {
     return [
+      {
+        source: '/service-worker.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
+      {
+        // El HTML nunca debe quedar cacheado en Safari/iOS: es lo que
+        // referencia los archivos JS nuevos de cada despliegue.
+        source: '/:path*',
+        has: [{ type: 'header', key: 'accept', value: '(.*text/html.*)' }],
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+        ],
+      },
       {
         source: '/(.*)',
         headers: securityHeaders,
