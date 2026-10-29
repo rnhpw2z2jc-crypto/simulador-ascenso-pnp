@@ -27,10 +27,11 @@ const DEFAULT_MAX_DEVICES = 1;
 
 function normalizeUser(u: UserData): UserData {
   const legacy = u as unknown as { deviceId?: string | null; deviceLocked?: boolean };
-  const devices = Array.isArray(u.devices) ? u.devices.slice(0, 2) : [];
+  let devices = Array.isArray(u.devices) ? Array.from(new Set(u.devices.filter(Boolean))) : [];
   if (devices.length === 0 && legacy.deviceId && legacy.deviceLocked) {
     devices.push(legacy.deviceId);
   }
+  devices = Array.from(new Set(devices)).slice(0, 2);
   const maxDevices = typeof u.maxDevices === 'number' ? Math.min(2, Math.max(1, Math.round(u.maxDevices))) : DEFAULT_MAX_DEVICES;
   return { ...u, devices, maxDevices };
 }
@@ -112,16 +113,21 @@ export async function migrateDeviceFields(): Promise<void> {
     const snap = await getDocs(collection(db, COLLECTION));
     for (const docSnap of snap.docs) {
       const raw = docSnap.data();
-      const hasDevices = typeof raw.devices !== 'undefined';
-      const hasMaxDevices = typeof raw.maxDevices !== 'undefined';
-      if (hasDevices && hasMaxDevices) continue;
       const legacy = raw as { deviceId?: string | null; deviceLocked?: boolean };
-      const devices = Array.isArray(raw.devices) ? raw.devices.slice(0, 2)
+      const rawDevices = Array.isArray(raw.devices) ? raw.devices.filter(Boolean) : [];
+      const devices = rawDevices.length > 0
+        ? rawDevices
         : (legacy.deviceId && legacy.deviceLocked ? [legacy.deviceId] : []);
-      await updateDoc(docSnap.ref, {
-        devices,
-        maxDevices: typeof raw.maxDevices === 'number' ? raw.maxDevices : DEFAULT_MAX_DEVICES,
-      });
+      const deduped = Array.from(new Set(devices)).slice(0, 2);
+      const maxDevices = typeof raw.maxDevices === 'number' ? raw.maxDevices : DEFAULT_MAX_DEVICES;
+
+      const needsUpdate =
+        !Array.isArray(raw.devices) ||
+        typeof raw.maxDevices === 'undefined' ||
+        deduped.length !== rawDevices.length;
+      if (!needsUpdate) continue;
+
+      await updateDoc(docSnap.ref, { devices: deduped, maxDevices });
     }
   } catch {
     // silent fail on migration

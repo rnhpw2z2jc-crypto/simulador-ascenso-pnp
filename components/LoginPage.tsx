@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Lock, AlertTriangle, User, Eye, EyeOff, Loader2, LogOut } from 'lucide-react';
 import { checkRateLimit, sanitizeUserInput } from '../lib/security';
@@ -19,9 +19,12 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
   const [loading, setLoading] = useState(false);
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
   const [lockoutTimer, setLockoutTimer] = useState('');
+  const submittingRef = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setLoading(true);
     setError('');
 
@@ -65,8 +68,9 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
         const currentDeviceId = await getDeviceId();
         const { platform, browser } = getDeviceInfo();
         const isAdmin = found.role === 'admin';
+        const linkedDevices = Array.from(new Set((found.devices || []).filter(Boolean)));
 
-        if (!isAdmin && !found.devices.includes(currentDeviceId) && found.devices.length >= found.maxDevices) {
+        if (!isAdmin && !linkedDevices.includes(currentDeviceId) && linkedDevices.length >= found.maxDevices) {
           logAccessAttempt({
             userId: found.id,
             username: found.username,
@@ -93,9 +97,22 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
           }).catch(() => {});
           const { password: _, ...safeFound } = found as unknown as Record<string, unknown>;
           onLogin(safeFound as unknown as UserType);
-        } else if (!found.devices.includes(currentDeviceId)) {
-          const updatedUser = { ...found, devices: [...found.devices, currentDeviceId] };
-          await updateUser(updatedUser);
+        } else if (!linkedDevices.includes(currentDeviceId)) {
+          // Releer el usuario para no pisar cambios y no duplicar el equipo si otra pestana ya lo vinculo
+          const fresh = await getUserByUsername(cleanUsername);
+          const base = fresh ?? found;
+          const freshDevices = Array.from(new Set((base.devices || []).filter(Boolean)));
+          const needsWrite = !freshDevices.includes(currentDeviceId);
+
+          if (needsWrite && freshDevices.length >= base.maxDevices) {
+            setError(`Esta cuenta solo puede usarse en ${base.maxDevices} dispositivo${base.maxDevices !== 1 ? 's' : ''}. Si cambio de equipo, comuniquese con el administrador.`);
+            return;
+          }
+
+          const updatedUser = needsWrite
+            ? { ...base, devices: [...freshDevices, currentDeviceId] }
+            : base;
+          if (needsWrite) await updateUser(updatedUser);
           logAccessAttempt({
             userId: found.id,
             username: found.username,
@@ -103,7 +120,7 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
             platform,
             browser,
             status: 'allowed',
-            reason: 'Nuevo dispositivo vinculado',
+            reason: needsWrite ? 'Nuevo dispositivo vinculado' : 'Dispositivo ya vinculado',
           }).catch(() => {});
           const { password: _, ...safeUpdated } = updatedUser as unknown as Record<string, unknown>;
           onLogin(safeUpdated as unknown as UserType);
@@ -131,8 +148,10 @@ export default function LoginPage({ onLogin }: { onLogin: (user: UserType) => vo
       }
     } catch {
       setError('Error de conexion. Intente de nuevo.');
+    } finally {
+      submittingRef.current = false;
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (

@@ -1,52 +1,82 @@
 const DEVICE_ID_KEY = 'simulador_device_id';
+const DEVICE_COOKIE = 'simulador_device_id';
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 año
 
-async function sha256(message: string): Promise<string> {
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
+let cachedDeviceId: string | null = null;
 
-export async function getDeviceId(): Promise<string> {
+function randomHex(bytes: number): string {
+  const arr = new Uint8Array(bytes);
   try {
-    const stored = localStorage.getItem(DEVICE_ID_KEY);
-    if (stored) return stored;
-  } catch {}
-
-  const components: string[] = [
-    navigator.userAgent,
-    navigator.language,
-    screen.width + 'x' + screen.height,
-    screen.colorDepth.toString(),
-    new Date().getTimezoneOffset().toString(),
-    navigator.hardwareConcurrency?.toString() || '0',
-    navigator.platform,
-    navigator.maxTouchPoints?.toString() || '0',
-    navigator.cookieEnabled.toString(),
-    (typeof window.indexedDB !== 'undefined').toString(),
-  ];
-
-  const raw = components.join('|');
-  let deviceId: string;
-  try {
-    const hash = await sha256(raw);
-    deviceId = 'dev_' + hash.slice(0, 24);
+    crypto.getRandomValues(arr);
+    return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
   } catch {
-    deviceId = 'dev_' + raw.length + '_' + Math.random().toString(16).slice(2, 10);
+    let out = '';
+    for (let i = 0; i < bytes * 2; i++) out += Math.floor(Math.random() * 16).toString(16);
+    return out;
   }
-
-  try {
-    localStorage.setItem(DEVICE_ID_KEY, deviceId);
-  } catch {}
-  return deviceId;
 }
 
-export function getDeviceIdSync(): string | null {
+function readCookie(): string | null {
+  try {
+    const match = document.cookie.match(new RegExp('(?:^|; )' + DEVICE_COOKIE + '=([^;]*)'));
+    return match ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCookie(value: string): void {
+  try {
+    document.cookie = `${DEVICE_COOKIE}=${encodeURIComponent(value)}; Max-Age=${COOKIE_MAX_AGE}; Path=/; SameSite=Lax`;
+  } catch {}
+}
+
+function readStored(): string | null {
   try {
     return localStorage.getItem(DEVICE_ID_KEY);
   } catch {
     return null;
   }
+}
+
+function writeStored(value: string): void {
+  try {
+    localStorage.setItem(DEVICE_ID_KEY, value);
+  } catch {}
+}
+
+export async function getDeviceId(): Promise<string> {
+  if (cachedDeviceId) return cachedDeviceId;
+
+  // 1) ID ya guardado en este navegador (estable de por vida)
+  const stored = readStored();
+  if (stored) {
+    cachedDeviceId = stored;
+    writeCookie(stored);
+    return stored;
+  }
+
+  // 2) Si se borro localStorage, recuperarlo desde la cookie
+  const fromCookie = readCookie();
+  if (fromCookie) {
+    cachedDeviceId = fromCookie;
+    writeStored(fromCookie);
+    return fromCookie;
+  }
+
+  // 3) Primera vez: generar un ID persistente y aleatorio (no depende de datos que cambian)
+  const deviceId = 'dev_' + randomHex(16);
+  cachedDeviceId = deviceId;
+  writeStored(deviceId);
+  writeCookie(deviceId);
+  return deviceId;
+}
+
+export function getDeviceIdSync(): string | null {
+  if (cachedDeviceId) return cachedDeviceId;
+  const stored = readStored();
+  if (stored) return stored;
+  return readCookie();
 }
 
 export function getDeviceInfo(): { platform: string; browser: string } {
