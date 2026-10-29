@@ -29,7 +29,7 @@ const MODE_META: Record<ThemeMode, {
 }> = {
   simulacro: {
     title: 'SIMULACRO',
-    subtitle: 'Elige los temas y la cantidad de preguntas',
+    subtitle: 'Elige temas y cantidad, o repasa un tema completo con tiempo',
     icon: FileText,
     iconBg: 'bg-tactical-blue/20',
     iconColor: 'text-tactical-blue-light',
@@ -71,6 +71,7 @@ export default function ThemeSelectPage({ mode, questions, onBack, onConfirm }: 
   const [selected, setSelected] = useState<string[]>(['all']);
   const [single, setSingle] = useState<string | null>(null);
   const [numQuestions, setNumQuestions] = useState<number>(10);
+  const [fullTheme, setFullTheme] = useState(false);
 
   const categories = useMemo(
     () => Array.from(new Set(questions.map(q => q.category))),
@@ -85,7 +86,7 @@ export default function ThemeSelectPage({ mode, questions, onBack, onConfirm }: 
 
   const allSelected = selected.includes('all');
   const activeCategories = multiple
-    ? (allSelected ? categories : selected)
+    ? (fullTheme ? (single ? [single] : []) : (allSelected ? categories : selected))
     : (single ? [single] : categories);
 
   const pool = useMemo(
@@ -94,16 +95,20 @@ export default function ThemeSelectPage({ mode, questions, onBack, onConfirm }: 
   );
 
   const finalCount = multiple
-    ? Math.min(numQuestions === 0 ? pool : numQuestions, pool)
+    ? (fullTheme ? pool : Math.min(numQuestions === 0 ? pool : numQuestions, pool))
     : pool;
 
-  const totalMinutes = Math.ceil(finalCount * 1.5);
-  const timeLabel = totalMinutes >= 60
-    ? `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60 ? `${totalMinutes % 60}m` : ''}`.trim()
-    : `${totalMinutes} min`;
+  const timeFor = (count: number) => {
+    const total = Math.ceil(count * 1.5);
+    return total >= 60
+      ? `${Math.floor(total / 60)}h ${total % 60 ? `${total % 60}m` : ''}`.trim()
+      : `${total} min`;
+  };
+
+  const timeLabel = timeFor(finalCount);
 
   const toggleCategory = (cat: string) => {
-    if (!multiple) {
+    if (!multiple || fullTheme) {
       setSingle(prev => (prev === cat ? null : cat));
       return;
     }
@@ -121,17 +126,20 @@ export default function ThemeSelectPage({ mode, questions, onBack, onConfirm }: 
   };
 
   const isChecked = (cat: string | null) => {
+    if (fullTheme) return cat === null ? false : single === cat;
     if (multiple) return cat === null ? allSelected : selected.includes(cat);
     return cat === null ? single === null : single === cat;
   };
 
-  const canContinue = pool > 0 && finalCount > 0;
+  const canContinue = fullTheme ? !!single && pool > 0 : pool > 0 && finalCount > 0;
 
   const handleConfirm = () => {
     if (!canContinue) return;
     onConfirm({
-      categories: activeCategories,
-      category: multiple ? (allSelected ? null : selected[0] ?? null) : single,
+      categories: fullTheme ? (single ? [single] : []) : activeCategories,
+      category: fullTheme
+        ? single
+        : multiple ? (allSelected ? null : selected[0] ?? null) : single,
       numQuestions: finalCount,
     });
   };
@@ -167,6 +175,39 @@ export default function ThemeSelectPage({ mode, questions, onBack, onConfirm }: 
 
       <div className="flex-1 max-w-5xl mx-auto w-full px-4 py-6 pb-28">
         {multiple && (
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <button
+              onClick={() => setFullTheme(false)}
+              className={`p-3 rounded-xl border text-left transition-all duration-200 flex items-center gap-2.5 ${
+                !fullTheme
+                  ? 'border-tactical-blue bg-tactical-blue/15'
+                  : 'border-navy-700 bg-navy-800/50 hover:border-navy-600'
+              }`}
+            >
+              <Hash className={`w-5 h-5 flex-shrink-0 ${!fullTheme ? 'text-tactical-blue-light' : 'text-slate-500'}`} />
+              <span className="min-w-0">
+                <span className={`block text-sm font-semibold ${!fullTheme ? 'text-white' : 'text-slate-300'}`}>Examen</span>
+                <span className="block text-[11px] text-slate-500 leading-tight">10, 50, 100 o todas</span>
+              </span>
+            </button>
+            <button
+              onClick={() => setFullTheme(true)}
+              className={`p-3 rounded-xl border text-left transition-all duration-200 flex items-center gap-2.5 ${
+                fullTheme
+                  ? 'border-gold bg-gold/10'
+                  : 'border-navy-700 bg-navy-800/50 hover:border-navy-600'
+              }`}
+            >
+              <Clock className={`w-5 h-5 flex-shrink-0 ${fullTheme ? 'text-gold' : 'text-slate-500'}`} />
+              <span className="min-w-0">
+                <span className={`block text-sm font-semibold ${fullTheme ? 'text-white' : 'text-slate-300'}`}>Repaso completo</span>
+                <span className="block text-[11px] text-slate-500 leading-tight">Un tema, con tiempo por pregunta</span>
+              </span>
+            </button>
+          </div>
+        )}
+
+        {multiple && !fullTheme && (
           <div className="glass rounded-2xl p-5 sm:p-6 mb-4">
             <h2 className="text-white font-semibold mb-1 flex items-center gap-2">
               <Hash className="w-4 h-4 text-gold" /> Cantidad de preguntas
@@ -208,43 +249,70 @@ export default function ThemeSelectPage({ mode, questions, onBack, onConfirm }: 
           </div>
         )}
 
+        {multiple && fullTheme && (
+          <div className="glass rounded-2xl p-4 sm:p-5 mb-4 border border-gold/40">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-gold/20 flex items-center justify-center flex-shrink-0">
+                <Clock className="w-5 h-5 text-gold" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-white font-semibold text-sm">Repaso completo por tema, con tiempo</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Elige un tema y repasa todas sus preguntas a ritmo de examen: 1.5 min por pregunta.
+                </p>
+                {single && (
+                  <p className="text-xs text-gold mt-1.5 font-medium">
+                    {pool} preguntas · ~{timeLabel} de examen
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="glass rounded-2xl p-5 sm:p-6">
           <div className="flex items-center justify-between gap-3 mb-1">
             <h2 className="text-white font-semibold flex items-center gap-2">
               <BookMarked className="w-4 h-4 text-gold" />
-              {multiple ? 'Temas del examen' : 'Elige el tema'}
+              {fullTheme ? 'Elige el tema a repasar' : multiple ? 'Temas del examen' : 'Elige el tema'}
             </h2>
             <span className="text-[11px] text-slate-500">
-              {multiple
-                ? (allSelected ? 'Todos los temas' : `${activeCategories.length} tema${activeCategories.length !== 1 ? 's' : ''}`)
-                : (single ? '1 tema' : 'Todos los temas')}
+              {fullTheme
+                ? (single ? '1 tema' : 'Sin tema')
+                : multiple
+                  ? (allSelected ? 'Todos los temas' : `${activeCategories.length} tema${activeCategories.length !== 1 ? 's' : ''}`)
+                  : (single ? '1 tema' : 'Todos los temas')}
             </span>
           </div>
           <p className="text-xs text-slate-400 mb-4">
-            {multiple
-              ? 'Puedes combinar varios temas. Pulsa “Todos los temas” para quitarlos.'
-              : 'Puedes cambiarlo después desde la pantalla del módulo.'}
+            {fullTheme
+              ? 'Todas las preguntas del tema con tiempo de examen. Elige uno para continuar.'
+              : multiple
+                ? 'Puedes combinar varios temas. Pulsa “Todos los temas” para quitarlos.'
+                : 'Puedes cambiarlo después desde la pantalla del módulo.'}
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            <button
-              onClick={() => toggleCategory('all')}
-              className={`p-3 rounded-xl border text-left transition-all duration-200 ${
-                isChecked(null) ? meta.accent : 'border-navy-700 bg-navy-800/50 hover:border-navy-600'
-              }`}
-            >
-              <span className="flex items-center justify-between gap-2">
-                <span className={`text-sm font-medium ${isChecked(null) ? 'text-white' : 'text-slate-200'}`}>
-                  📚 Todos los temas
+            {!fullTheme && (
+              <button
+                onClick={() => toggleCategory('all')}
+                className={`p-3 rounded-xl border text-left transition-all duration-200 ${
+                  isChecked(null) ? meta.accent : 'border-navy-700 bg-navy-800/50 hover:border-navy-600'
+                }`}
+              >
+                <span className="flex items-center justify-between gap-2">
+                  <span className={`text-sm font-medium ${isChecked(null) ? 'text-white' : 'text-slate-200'}`}>
+                    📚 Todos los temas
+                  </span>
+                  <span className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                    isChecked(null) ? 'border-white/40 bg-white/20' : 'border-slate-600'
+                  }`}>
+                    {isChecked(null) && <Check className="w-3 h-3 text-white" />}
+                  </span>
                 </span>
-                <span className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                  isChecked(null) ? 'border-white/40 bg-white/20' : 'border-slate-600'
-                }`}>
-                  {isChecked(null) && <Check className="w-3 h-3 text-white" />}
-                </span>
-              </span>
-              <span className="block text-xs text-slate-500 mt-0.5">{questions.length} preguntas</span>
-            </button>
+                <span className="block text-xs text-slate-500 mt-0.5">{questions.length} preguntas</span>
+              </button>
+            )}
 
             {categories.map(cat => {
               const count = counts.get(cat) || 0;
@@ -267,7 +335,14 @@ export default function ThemeSelectPage({ mode, questions, onBack, onConfirm }: 
                       {checked && <Check className="w-3 h-3 text-white" />}
                     </span>
                   </span>
-                  <span className="block text-xs text-slate-500 mt-0.5">{count} preguntas</span>
+                  <span className="block text-xs text-slate-500 mt-0.5">
+                    {count} preguntas
+                    {multiple && (
+                      <span className={fullTheme ? 'text-gold/80' : 'text-slate-500'}>
+                        {' '}· ~{timeFor(count)} {fullTheme ? 'con tiempo' : 'de examen'}
+                      </span>
+                    )}
+                  </span>
                 </button>
               );
             })}
@@ -279,13 +354,17 @@ export default function ThemeSelectPage({ mode, questions, onBack, onConfirm }: 
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-xs text-slate-400 truncate">
-              {multiple
-                ? `${finalCount} preguntas · ~${timeLabel}`
-                : `${finalCount} preguntas${single ? '' : ' · todos los temas'}`}
+              {fullTheme
+                ? (single ? `${pool} preguntas · ~${timeLabel} de examen` : 'Elige un tema para repasar')
+                : multiple
+                  ? `${finalCount} preguntas · ~${timeLabel}`
+                  : `${finalCount} preguntas${single ? '' : ' · todos los temas'}`}
             </p>
             <p className="text-[11px] text-slate-500 truncate flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              {multiple ? 'Tiempo estimado 1.5 min por pregunta' : 'Sin límite de tiempo'}
+              {fullTheme
+                ? '1.5 min por pregunta · examen cronometrado'
+                : multiple ? 'Tiempo estimado 1.5 min por pregunta' : 'Sin límite de tiempo'}
             </p>
           </div>
           <button
@@ -294,7 +373,7 @@ export default function ThemeSelectPage({ mode, questions, onBack, onConfirm }: 
             className={`px-5 sm:px-7 py-3 rounded-xl font-bold text-sm sm:text-base border transition-all duration-300 btn-glow flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 ${meta.button}`}
           >
             <Play className="w-4 h-4 sm:w-5 sm:h-5" />
-            {meta.confirm}
+            {fullTheme ? 'INICIAR REPASO' : meta.confirm}
             <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>

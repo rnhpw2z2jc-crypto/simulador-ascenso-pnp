@@ -367,7 +367,7 @@ export default function Home() {
             config={examConfig}
             questions={questions}
             onStart={beginExam}
-            onBack={() => setCurrentPage('dashboard')}
+            onBack={() => setCurrentPage('themes')}
           />
         )}
         {currentPage === 'exam' && examState && (

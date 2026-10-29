@@ -103,7 +103,7 @@ export default function DashboardPage({
     {
       id: 'simulacro',
       title: 'Simulacro',
-      description: 'Examen cronometrado con las preguntas del tema',
+      description: 'Examen cronometrado o repaso completo por tema',
       icon: FileText,
       badge: `${questions.length}`,
       enabled: questions.length > 0,
