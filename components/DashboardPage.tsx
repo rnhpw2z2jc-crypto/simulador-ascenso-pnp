@@ -17,7 +17,7 @@ const MOTIVATIONAL_ENABLED = true;
 
 let motivationalShownThisLoad = false;
 
-export type FeatureMode = 'simulacro' | 'recognition' | 'audio';
+export type FeatureMode = 'simulacro' | 'repaso' | 'recognition' | 'audio';
 
 export default function DashboardPage({
   user, questions, onRefreshUser, onPickMode, onStartReinforcement,
@@ -103,7 +103,7 @@ export default function DashboardPage({
     {
       id: 'simulacro',
       title: 'Simulacro',
-      description: 'Examen cronometrado o repaso completo por tema',
+      description: 'Examen cronometrado con la cantidad que elijas',
       icon: FileText,
       badge: `${questions.length}`,
       enabled: questions.length > 0,
@@ -358,6 +358,35 @@ export default function DashboardPage({
               </button>
             ))}
           </div>
+
+          {/* Repaso completo por tema */}
+          <button
+            onClick={() => onPickMode('repaso')}
+            disabled={questions.length === 0}
+            className={`group mt-4 w-full rounded-2xl border-2 p-4 sm:p-5 flex items-center gap-4 text-left transition-all duration-300 ${
+              questions.length > 0
+                ? 'glass border-gold/50 hover:border-gold hover:-translate-y-0.5 hover:shadow-[0_0_30px_-8px_rgba(234,179,8,0.55)]'
+                : 'bg-navy-800/30 border-navy-800 opacity-55 cursor-not-allowed'
+            }`}
+          >
+            <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-gold to-gold-dark transition-transform duration-300 ${questions.length > 0 ? 'group-hover:scale-105' : 'grayscale'}`}>
+              <Clock className="w-7 h-7 sm:w-8 sm:h-8 text-navy-900" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`font-bold text-sm sm:text-base leading-tight ${questions.length > 0 ? 'text-white' : 'text-slate-400'}`}>
+                Repaso completo por tema
+              </p>
+              <p className="text-[10px] sm:text-xs text-slate-400 mt-1 leading-snug">
+                Todas las preguntas del tema, con tiempo de examen
+              </p>
+            </div>
+            <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full bg-gold/20 text-gold text-[10px] font-semibold flex-shrink-0">
+              1.5 min/pregunta
+            </span>
+            {questions.length > 0 && (
+              <ArrowRight className="w-5 h-5 text-slate-500 flex-shrink-0 group-hover:text-gold group-hover:translate-x-0.5 transition-all" />
+            )}
+          </button>
         </motion.div>
 
         {/* Accesos secundarios */}

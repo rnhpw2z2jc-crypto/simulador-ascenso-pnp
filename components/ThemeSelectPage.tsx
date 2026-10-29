@@ -59,11 +59,12 @@ const MODE_META: Record<ThemeMode, {
   },
 };
 
-export default function ThemeSelectPage({ mode, questions, onBack, onConfirm }: {
+export default function ThemeSelectPage({ mode, questions, onBack, onConfirm, initialFullTheme = false }: {
   mode: ThemeMode;
   questions: Question[];
   onBack: () => void;
   onConfirm: (selection: ThemeSelection) => void;
+  initialFullTheme?: boolean;
 }) {
   const meta = MODE_META[mode];
   const multiple = mode === 'simulacro';
@@ -71,7 +72,7 @@ export default function ThemeSelectPage({ mode, questions, onBack, onConfirm }: 
   const [selected, setSelected] = useState<string[]>(['all']);
   const [single, setSingle] = useState<string | null>(null);
   const [numQuestions, setNumQuestions] = useState<number>(10);
-  const [fullTheme, setFullTheme] = useState(false);
+  const [fullTheme, setFullTheme] = useState(initialFullTheme);
 
   const categories = useMemo(
     () => Array.from(new Set(questions.map(q => q.category))),
@@ -160,12 +161,20 @@ export default function ThemeSelectPage({ mode, questions, onBack, onConfirm }: 
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className={`w-10 h-10 rounded-xl ${meta.iconBg} flex items-center justify-center flex-shrink-0`}>
-            <meta.icon className={`w-5 h-5 ${meta.iconColor}`} />
+          <div className={`w-10 h-10 rounded-xl ${fullTheme ? 'bg-gold/20' : meta.iconBg} flex items-center justify-center flex-shrink-0`}>
+            {fullTheme ? (
+              <Clock className="w-5 h-5 text-gold" />
+            ) : (
+              <meta.icon className={`w-5 h-5 ${meta.iconColor}`} />
+            )}
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="font-bold text-white text-sm sm:text-base truncate">{meta.title}</h1>
-            <p className="text-[11px] sm:text-xs text-slate-400 truncate">{meta.subtitle}</p>
+            <h1 className="font-bold text-white text-sm sm:text-base truncate">
+              {fullTheme ? 'REPASO POR TEMA' : meta.title}
+            </h1>
+            <p className="text-[11px] sm:text-xs text-slate-400 truncate">
+              {fullTheme ? 'Todas las preguntas del tema, con tiempo de examen' : meta.subtitle}
+            </p>
           </div>
           <span className="hidden sm:inline-flex px-2.5 py-1 rounded-full bg-navy-800 text-xs text-slate-300 flex-shrink-0">
             {questions.length} preguntas

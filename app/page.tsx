@@ -49,6 +49,7 @@ function SplashLoader() {
 export default function Home() {
   const [currentPage, setCurrentPage] = useState<'login' | 'register' | 'dashboard' | 'themes' | 'config' | 'exam' | 'results' | 'history' | 'admin' | 'profile' | 'analytics' | 'recognition' | 'audio'>('login');
   const [themeMode, setThemeMode] = useState<ThemeMode>('simulacro');
+  const [themeFull, setThemeFull] = useState(false);
   const [audioCategory, setAudioCategory] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [examConfig, setExamConfig] = useState<ExamConfig | null>(null);
@@ -324,7 +325,8 @@ export default function Home() {
             questions={questions}
             onRefreshUser={refreshUserData}
             onPickMode={(mode: FeatureMode) => {
-              setThemeMode(mode);
+              setThemeMode('simulacro');
+              setThemeFull(mode === 'repaso');
               setCurrentPage('themes');
             }}
             onStartReinforcement={startReinforcement}
@@ -343,8 +345,9 @@ export default function Home() {
         )}
         {currentPage === 'themes' && user && (
           <ThemeSelectPage
-            key="themes"
+            key={`themes-${themeMode}-${themeFull ? 'repaso' : 'examen'}`}
             mode={themeMode}
+            initialFullTheme={themeFull}
             questions={questions}
             onBack={() => setCurrentPage('dashboard')}
             onConfirm={(selection: ThemeSelection) => {
