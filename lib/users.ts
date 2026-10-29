@@ -1,6 +1,6 @@
 import { db } from './firebase';
 import {
-  collection, doc, getDocs, setDoc, deleteDoc, updateDoc, query, where
+  collection, doc, getDoc, getDocs, setDoc, deleteDoc, updateDoc, query, where
 } from 'firebase/firestore';
 import { hashPassword, verifyPassword, isBcryptHash } from './password';
 
@@ -107,10 +107,24 @@ export async function seedDefaultAdmin(): Promise<void> {
       status: 'active',
       devices: [],
       maxDevices: DEFAULT_MAX_DEVICES,
+      features: { audio: true },
     });
-  } else if (!isBcryptHash(existing.password)) {
+    return;
+  }
+
+  if (!isBcryptHash(existing.password)) {
     const hashedPassword = await hashPassword(existing.password);
     await updateUser({ ...existing, password: hashedPassword });
+  }
+
+  // El admin siempre debe poder probar el Modo Audio. Se activa una sola vez,
+  // solo si la cuenta nunca tuvo el campo, para no pisar el interruptor manual.
+  if (existing.role === 'admin') {
+    const snap = await getDoc(doc(db, COLLECTION, existing.id));
+    const raw = snap.data() as UserData | undefined;
+    if (raw && typeof raw.features === 'undefined') {
+      await updateDoc(snap.ref, { features: { audio: true } });
+    }
   }
 }
 
