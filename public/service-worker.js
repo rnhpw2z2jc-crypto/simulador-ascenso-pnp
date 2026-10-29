@@ -1,4 +1,4 @@
-const CACHE_NAME = 'simulador-pnp-v6';
+const CACHE_NAME = 'simulador-pnp-v7';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -35,6 +35,12 @@ self.addEventListener('message', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
+  const url = new URL(event.request.url);
+
+  // Solo cachear recursos propios: nunca Firestore ni APIs externas
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/api/')) return;
+
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -48,6 +54,24 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
+    );
+    return;
+  }
+
+  // Banco de preguntas: red primero para recibir actualizaciones, caché como respaldo
+  if (url.pathname.endsWith('/questions.json')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, clone);
+            });
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
     );
     return;
   }

@@ -24,26 +24,34 @@ function letterAt(i: number): string {
   return LETTERS[i] || String(i + 1);
 }
 
+function sentence(text: string): string {
+  const value = (text || '').trim();
+  if (!value) return '';
+  return /[.!?]$/.test(value) ? value : `${value}.`;
+}
+
 function buildAnswerSegments(q: Question): string[] {
   const norm = getCategoryDisplayName(getCategoryKey(q.category));
   const legal = formatLegalBasis(q.legalBasis);
   return [
-    `Respuesta correcta. Opción ${letterAt(q.correctAnswer)}. ${q.options[q.correctAnswer]}.`,
-    `Sustento legal. ${norm}.${legal ? ` ${legal}.` : ''}`,
+    `Respuesta correcta. Opción ${letterAt(q.correctAnswer)}. ${sentence(q.options[q.correctAnswer])}`,
+    `Sustento legal. ${norm}.${legal ? ` ${sentence(legal)}` : ''}`,
   ];
 }
 
-function buildQuestionSegments(q: Question, index: number, total: number, withAnswer: boolean): string[] {
+function buildQuestionSegments(q: Question, index: number, total: number, withAnswer: boolean, readOptions: boolean): string[] {
   const segments: string[] = [];
   segments.push(`Pregunta ${index + 1} de ${total}.`);
-  segments.push(q.question);
-  q.options.forEach((option, i) => {
-    segments.push(`Opción ${letterAt(i)}. ${option}.`);
-  });
+  segments.push(sentence(q.question));
+  if (readOptions) {
+    q.options.forEach((option, i) => {
+      segments.push(`Opción ${letterAt(i)}. ${sentence(option)}`);
+    });
+  }
   if (withAnswer) {
     segments.push(...buildAnswerSegments(q));
   } else {
-    segments.push('Piense su respuesta.');
+    segments.push(readOptions ? 'Piense su respuesta.' : 'Tome unos segundos para recordar la respuesta.');
   }
   return segments;
 }
@@ -56,6 +64,7 @@ export default function AudioTacticoPage({ questions, onBack }: {
   const [size, setSize] = useState<number>(10);
   const [mode, setMode] = useState<StudyMode>('estudio');
   const [autoAdvance, setAutoAdvance] = useState(true);
+  const [readOptions, setReadOptions] = useState(false);
   const [started, setStarted] = useState(false);
   const [session, setSession] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
@@ -71,12 +80,14 @@ export default function AudioTacticoPage({ questions, onBack }: {
   const indexRef = useRef(0);
   const modeRef = useRef<StudyMode>('estudio');
   const autoAdvanceRef = useRef(true);
+  const readOptionsRef = useRef(false);
   const categoryRef = useRef<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playRef = useRef<(list: Question[], i: number, reveal?: boolean) => void>(() => {});
 
   useEffect(() => { modeRef.current = mode; }, [mode]);
   useEffect(() => { autoAdvanceRef.current = autoAdvance; }, [autoAdvance]);
+  useEffect(() => { readOptionsRef.current = readOptions; }, [readOptions]);
   useEffect(() => { categoryRef.current = category; }, [category]);
 
   useEffect(() => {
@@ -134,7 +145,9 @@ export default function AudioTacticoPage({ questions, onBack }: {
     const reveal = revealOverride ?? (modeRef.current === 'estudio');
     setShowAnswer(reveal);
 
-    const segments = buildQuestionSegments(q, i, list.length, reveal);
+    // En Evaluacion las opciones son necesarias; en Estudio son opcionales
+    const withOptions = modeRef.current === 'evaluacion' || readOptionsRef.current;
+    const segments = buildQuestionSegments(q, i, list.length, reveal, withOptions);
     speak(segments, {
       onEnd: () => {
         if (modeRef.current !== 'estudio' || !autoAdvanceRef.current) return;
@@ -280,7 +293,7 @@ export default function AudioTacticoPage({ questions, onBack }: {
                 <h2 className="text-white font-semibold mb-1 flex items-center gap-2">
                   <ListMusic className="w-5 h-5 text-gold" /> 1. Elige el tema
                 </h2>
-                <p className="text-xs text-slate-400 mb-4">Se leeran la pregunta, las opciones y el sustento legal.</p>
+                <p className="text-xs text-slate-400 mb-4">Se leera la pregunta, la respuesta correcta y el sustento legal.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[340px] overflow-y-auto pr-1">
                   <button
                     onClick={() => setCategory(null)}
@@ -357,7 +370,7 @@ export default function AudioTacticoPage({ questions, onBack }: {
                     }`}
                   >
                     <span className={`block text-sm font-semibold ${mode === 'estudio' ? 'text-gold' : 'text-white'}`}>🎧 Estudio</span>
-                    <span className="block text-xs text-slate-400">Lee la pregunta y la respuesta con su sustento legal.</span>
+                    <span className="block text-xs text-slate-400">Pregunta, respuesta correcta y sustento legal. Sin alternativas por defecto.</span>
                   </button>
                   <button
                     onClick={() => setMode('evaluacion')}
@@ -377,6 +390,18 @@ export default function AudioTacticoPage({ questions, onBack }: {
                     type="checkbox"
                     checked={autoAdvance}
                     onChange={e => setAutoAdvance(e.target.checked)}
+                    className="w-4 h-4 accent-yellow-500"
+                  />
+                </label>
+                <label className="mt-2 flex items-center justify-between gap-3 p-3 rounded-xl bg-navy-800/50 border border-navy-700 cursor-pointer">
+                  <span>
+                    <span className="block text-sm text-slate-300">Leer tambien las opciones</span>
+                    <span className="block text-[11px] text-slate-500">Solo en Estudio. En Evaluacion siempre se leen.</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={readOptions}
+                    onChange={e => setReadOptions(e.target.checked)}
                     className="w-4 h-4 accent-yellow-500"
                   />
                 </label>
@@ -510,6 +535,17 @@ export default function AudioTacticoPage({ questions, onBack }: {
                     <span className="text-xs text-slate-500">Voz del sistema</span>
                   )}
                 </div>
+                <label className="flex items-center justify-between gap-3 cursor-pointer">
+                  <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                    <Eye className="w-4 h-4" /> Leer opciones (solo en Estudio)
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={readOptions}
+                    onChange={e => setReadOptions(e.target.checked)}
+                    className="w-4 h-4 accent-yellow-500"
+                  />
+                </label>
               </div>
             </motion.div>
           )}

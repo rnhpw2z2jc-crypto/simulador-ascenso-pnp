@@ -539,7 +539,7 @@ export default function DashboardPage({ user, questions, onRefreshUser, onStartE
                     className="overflow-hidden">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
                       <div className="p-3 rounded-xl border border-navy-700 bg-navy-800/50 text-xs text-slate-400">
-                        🎧 Lee la pregunta, las opciones, la respuesta y el sustento legal
+                        🎧 Lee la pregunta, la respuesta correcta y el sustento legal
                       </div>
                       <div className="p-3 rounded-xl border border-navy-700 bg-navy-800/50 text-xs text-slate-400">
                         📚 Organizado por las mismas materias del examen
