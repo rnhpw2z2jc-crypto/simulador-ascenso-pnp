@@ -417,8 +417,9 @@ export default function Home() {
           />
         )}
         {currentPage === 'analytics' && (
-          <AnalyticsPage 
+          <AnalyticsPage
             key="analytics"
+            user={user}
             questions={questions}
             onBack={() => setCurrentPage('dashboard')}
           />
