@@ -180,7 +180,11 @@ class AdminNotifier extends Notifier<AdminState> {
   }
 
   Future<void> init() async {
-    if (_initialized) return;
+    if (_initialized) {
+      // Al volver al panel se refresca la lista, igual que al montar la PWA.
+      await _loadUsers();
+      return;
+    }
     _initialized = true;
     await _loadUsers(seed: true);
     _refreshTimer?.cancel();
@@ -217,10 +221,11 @@ class AdminNotifier extends Notifier<AdminState> {
   void setTab(AdminTab tab) {
     if (state.tab == tab) return;
     state = state.copyWith(tab: tab);
-    if (tab == AdminTab.logs && state.logs.isEmpty) {
+    // La PWA recarga registros/estadisticas al entrar a cada pestana.
+    if (tab == AdminTab.logs) {
       unawaited(loadLogs());
     }
-    if (tab == AdminTab.stats && state.stats.isEmpty) {
+    if (tab == AdminTab.stats) {
       unawaited(loadStats());
     }
   }
