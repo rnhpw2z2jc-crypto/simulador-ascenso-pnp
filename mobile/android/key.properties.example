@@ -1,0 +1,11 @@
+# Copia este archivo a `android/key.properties` y completa con tu keystore
+# de produccion antes de publicar en Play Store.
+#
+#   keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA \
+#           -keysize 2048 -validity 10000 -alias upload
+#
+# `storeFile` es relativo a la carpeta `android/`.
+storePassword=CAMBIA_ESTO
+keyPassword=CAMBIA_ESTO
+keyAlias=upload
+storeFile=upload-keystore.jks
