@@ -141,7 +141,8 @@ splash, el login, el pie del dashboard y la sección "Acerca de" del perfil.
 - El panel de administración no valida el rol en el servidor: las reglas de
   Firestore permiten escritura con validación de estructura. Restringirlo
   requiere reglas basadas en autenticación o Cloud Functions.
-- El icono de la app es el predeterminado de Flutter hasta que se apruebe el
-  arte institucional definitivo.
+- El icono de lanzador se genera con `flutter_launcher_icons` a partir de
+  `assets/icon/app_icon.jpg` (emblema lobo alternativo), incluyendo icono
+  adaptativo sobre fondo navy-900.
 - La caducidad de membresía muestra avisos, pero no bloquea el acceso (misma
   política que la PWA).
