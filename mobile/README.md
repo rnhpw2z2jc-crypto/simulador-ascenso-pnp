@@ -3,12 +3,14 @@
 Aplicación Android/iOS que replica la PWA del **Simulador de Ascenso PNP**
 usando el mismo backend de Firebase/Firestore (`simulador-pnp-b57f0`).
 
-- UI oscura institucional (`#121212`, azul `#2F6FED`, dorado `#EAB308`).
+- UI idéntica a la PWA: navy `#0F172A`/`#1E293B`/`#334155`, azul táctico
+  `#1E40AF`/`#3B82F6`, dorado `#EAB308`, tarjetas `glass` y tipografía Inter.
 - Login con Firestore + bcrypt (`users.password`), bloqueo por 3 intentos y
   límite de dispositivos (`devices` / `maxDevices`).
 - Simulacro cronometrado, repaso por tema, reconocimiento y audio táctico.
 - Resultados con revisión, historial local (40 exámenes) y reforzamiento.
 - Perfil: edición de datos, cambio de contraseña y estado de dispositivos.
+- Panel de administración completo para cuentas con `role == 'admin'`.
 - Guardado automático del examen en pausa y caducidad de sesión a los 30 min.
 
 ## Requisitos
@@ -64,22 +66,46 @@ Para publicar en Play Store se recomienda:
 3. Verificar que las reglas de `firestore.rules` permitan las operaciones que
    usa el cliente (`users`, `accessLogs`, `examStats`).
 
+## Panel de administración
+
+Disponible sólo para `users.role == 'admin'` (icono de engranaje en la cabecera
+del dashboard o ruta `/admin`). Replica `components/AdminPage.tsx`:
+
+- **Usuarios**: búsqueda por nombre/usuario/email, filtros de membresía
+  (`Todos` / `Activos` / `Vencidos` / `Sin fecha`), orden por nombre o usuario,
+  paginación (10 en móvil, 20 en pantallas anchas), refresco automático cada
+  30 s, alta de usuarios (`free` 12 h o `vip` hasta 31/12/2026), edición,
+  activar/bloquear, alternar Modo Audio, membresía rápida, límite de
+  dispositivos 1/2, liberar un dispositivo o todos y eliminación en cascada
+  (`users` + `examStats` + `accessLogs`).
+- **Registro de accesos**: últimos 200 intentos (`accessLogs`) con estado
+  permitido/bloqueado, plataforma, navegador y fecha.
+- **Estadísticas**: total de exámenes, promedio general, usuarios activos,
+  preguntas más falladas (Top 20) y rendimiento por usuario, calculados desde
+  `examStats`.
+
+Los modales de alta/edición aplican las mismas validaciones que la PWA
+(`lib/security.ts`): usuario de 3–30 caracteres `[a-zA-Z0-9._-]`, email válido,
+contraseña de 6+ caracteres y disponibilidad de nombre de usuario.
+
 ## Arquitectura
 
 ```
 lib/
   core/
     constants.dart          Reglas de negocio compartidas con la PWA
-    theme/                  Tema y paleta
+    theme/                  Paleta, `glass`, transiciones y tipografía Inter
     utils/                  Categorías legales y formateadores
     services/               Firebase, almacenamiento, bcrypt, TTS, dispositivo
   data/
-    models/                 AppUser, Question, ExamConfig/State/Result/Session
-    repositories/           Auth, usuarios, preguntas, historial, examen pausado
+    models/                 AppUser, Question, ExamConfig/State/Result y
+                            entradas de administración (accessLogs/examStats)
+    repositories/           Auth, usuarios (+ CRUD admin), preguntas, historial
   presentation/
-    providers/              Riverpod: auth, preguntas, examen, historial
-    screens/                Login, dashboard, temas, examen, resultados, etc.
-    widgets/                Componentes comunes
+    providers/              Riverpod: auth, preguntas, examen, historial, admin
+    screens/                Login, dashboard, temas, examen, resultados,
+                            perfil y panel de administración
+    widgets/                Componentes comunes y modales de usuarios
 ```
 
 Estado manejado con **Riverpod 3** (`NotifierProvider`), navegación con
@@ -98,10 +124,14 @@ voz con `flutter_tts`.
 
 ## Limitaciones conocidas
 
-- El panel de administración y las analíticas avanzadas siguen en la web.
+- La analítica avanzada del dashboard web no se replica; el panel móvil cubre
+  usuarios, accesos y estadísticas de exámenes.
 - El hash bcrypt se lee desde Firestore porque las reglas actuales permiten
   lectura pública de `users` (igual que la PWA). Endurecer esto requiere mover
   la autenticación a un backend/Cloud Function.
+- El panel de administración no valida el rol en el servidor: las reglas de
+  Firestore permiten escritura con validación de estructura. Restringirlo
+  requiere reglas basadas en autenticación o Cloud Functions.
 - El icono de la app es el predeterminado de Flutter hasta que se apruebe el
   arte institucional definitivo.
 - La caducidad de membresía muestra avisos, pero no bloquea el acceso (misma

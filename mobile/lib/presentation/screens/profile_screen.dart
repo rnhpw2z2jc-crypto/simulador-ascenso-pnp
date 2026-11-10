@@ -327,7 +327,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: 8),
                 const Text(
                   'Si cambias de equipo, solicita al administrador que libere '
-                  'un dispositivo desde el panel web.',
+                  'un dispositivo desde el panel de administración.',
                   style: TextStyle(
                     fontSize: 10.5,
                     color: AppColors.textMuted,

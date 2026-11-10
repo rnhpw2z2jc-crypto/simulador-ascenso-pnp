@@ -98,7 +98,7 @@ class DashboardScreen extends ConsumerWidget {
                   style: FilledButton.styleFrom(
                     minimumSize: const Size(88, 38),
                     backgroundColor: AppColors.gold,
-                    foregroundColor: const Color(0xFF1A1A00),
+                    foregroundColor: AppColors.navy900,
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                   ),
                   onPressed: () {
@@ -172,7 +172,12 @@ class DashboardScreen extends ConsumerWidget {
                   title: 'Simulacro',
                   description: 'Examen cronometrado con la cantidad que elijas',
                   icon: Icons.assignment_outlined,
-                  color: AppColors.blue,
+                  color: AppColors.tacticalBlueLight,
+                  gradient: const [
+                    AppColors.tacticalBlue,
+                    AppColors.tacticalBlueDark,
+                  ],
+                  iconColor: Colors.white,
                   badge: '$questionCount',
                   enabled: questionCount > 0,
                   onTap: () => context.go('/themes?mode=simulacro'),
@@ -182,6 +187,8 @@ class DashboardScreen extends ConsumerWidget {
                   description: 'Repasa pregunta por pregunta, sin presión de tiempo',
                   icon: Icons.gps_fixed_rounded,
                   color: AppColors.cyan,
+                  gradient: const [AppColors.cyan, AppColors.tacticalBlueDark],
+                  iconColor: Colors.white,
                   enabled: questionCount > 0,
                   onTap: () => context.go('/themes?mode=recognition'),
                 ),
@@ -192,6 +199,8 @@ class DashboardScreen extends ConsumerWidget {
                       : 'Pide al administrador activar el Modo Audio',
                   icon: Icons.headphones_rounded,
                   color: AppColors.gold,
+                  gradient: const [AppColors.gold, AppColors.goldDark],
+                  iconColor: AppColors.navy900,
                   badge: user.hasAudioAccess ? 'Complemento' : 'Bloqueado',
                   enabled: user.hasAudioAccess && questionCount > 0,
                   onTap: () => context.go('/themes?mode=audio'),
@@ -203,6 +212,8 @@ class DashboardScreen extends ConsumerWidget {
                       : 'Sin preguntas falladas por ahora',
                   icon: Icons.psychology_alt_outlined,
                   color: AppColors.warning,
+                  gradient: const [AppColors.warning, AppColors.goldDark],
+                  iconColor: AppColors.navy900,
                   badge: failedIds.isNotEmpty ? '${failedIds.length}' : null,
                   enabled: failedIds.isNotEmpty && questionCount > 0,
                   onTap: () => _startReinforcement(context, ref),
@@ -227,7 +238,7 @@ class DashboardScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(15),
                     ),
                     child: const Icon(Icons.hourglass_bottom_rounded,
-                        color: Color(0xFF1A1A00), size: 26),
+                        color: AppColors.navy900, size: 26),
                   ),
                   const SizedBox(width: 14),
                   const Expanded(
@@ -357,41 +368,53 @@ class _DashboardHeader extends ConsumerWidget {
     return Row(
       children: [
         Container(
-          width: 44,
-          height: 44,
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
-            color: AppColors.blue.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(13),
-            border: Border.all(
-              color: AppColors.blue.withValues(alpha: 0.45),
-            ),
+            color: AppColors.tacticalBlue.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: const Icon(Icons.shield_rounded,
-              color: AppColors.blueLight, size: 24),
+              color: AppColors.tacticalBlueLight, size: 22),
         ),
         const SizedBox(width: 11),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'SIMULADOR PNP',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.6,
+              Text.rich(
+                TextSpan(
+                  text: 'SIMULADOR ',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                  ),
+                  children: const [
+                    TextSpan(
+                      text: 'PNP',
+                      style: TextStyle(color: AppColors.gold),
+                    ),
+                  ],
                 ),
               ),
-              Text(
+              const Text(
                 'Examen de Ascenso',
                 style: TextStyle(
                   fontSize: 10.5,
-                  color: AppColors.textMuted,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ],
           ),
         ),
+        if (user.isAdmin)
+          IconButton(
+            onPressed: () => context.push('/admin'),
+            tooltip: 'Panel de Administración',
+            icon: const Icon(Icons.settings_rounded,
+                size: 21, color: AppColors.gold),
+          ),
         IconButton(
           onPressed: () => context.push('/profile'),
           tooltip: 'Mi perfil',
@@ -444,6 +467,8 @@ class _ModeTile extends StatelessWidget {
     required this.description,
     required this.icon,
     required this.color,
+    required this.gradient,
+    required this.iconColor,
     required this.enabled,
     required this.onTap,
     this.badge,
@@ -453,6 +478,8 @@ class _ModeTile extends StatelessWidget {
   final String description;
   final IconData icon;
   final Color color;
+  final List<Color> gradient;
+  final Color iconColor;
   final bool enabled;
   final VoidCallback onTap;
   final String? badge;
@@ -460,10 +487,12 @@ class _ModeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Opacity(
-      opacity: enabled ? 1 : 0.5,
+      opacity: enabled ? 1 : 0.55,
       child: AppCard(
         padding: const EdgeInsets.all(14),
-        borderColor: enabled ? color.withValues(alpha: 0.35) : AppColors.border,
+        borderColor: enabled
+            ? color.withValues(alpha: 0.5)
+            : AppColors.navy700.withValues(alpha: 0.6),
         onTap: enabled ? onTap : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,12 +503,19 @@ class _ModeTile extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(13),
+                    gradient: enabled
+                        ? LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: gradient,
+                          )
+                        : null,
+                    color: enabled ? null : AppColors.navy700,
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
                     enabled ? icon : Icons.lock_outline_rounded,
-                    color: color,
+                    color: enabled ? iconColor : AppColors.textMuted,
                     size: 23,
                   ),
                 ),
@@ -489,15 +525,19 @@ class _ModeTile extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceHigh,
+                      color: enabled
+                          ? Colors.white.withValues(alpha: 0.1)
+                          : AppColors.navy800,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       badge!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 9.5,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
+                        color: enabled
+                            ? const Color(0xFFE2E8F0)
+                            : AppColors.textMuted,
                       ),
                     ),
                   ),
@@ -506,9 +546,10 @@ class _ModeTile extends StatelessWidget {
             const Spacer(),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14.5,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
+                color: enabled ? Colors.white : AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: 3),

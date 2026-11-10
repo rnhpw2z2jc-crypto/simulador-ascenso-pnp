@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/exam_flow_provider.dart';
+import 'presentation/screens/admin_screen.dart';
 import 'presentation/screens/audio_tactico_screen.dart';
 import 'presentation/screens/config_screen.dart';
 import 'presentation/screens/dashboard_screen.dart';
@@ -53,6 +54,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (location == '/audio') {
         final user = auth.user;
         if (user == null || !user.hasAudioAccess) return '/dashboard';
+      }
+      if (location == '/admin') {
+        final user = auth.user;
+        if (user == null || !user.isAdmin) return '/dashboard';
       }
 
       return null;
@@ -107,6 +112,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/admin',
+        builder: (context, state) => const AdminScreen(),
       ),
     ],
     errorBuilder: (context, state) => PageScaffold(

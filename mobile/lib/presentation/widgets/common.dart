@@ -1,8 +1,10 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 
-/// Marco visual comun: fondo oscuro con degradado institucional.
+/// Marco visual comun: fondo navy-900 con el brillo institucional sutil.
 class PageScaffold extends StatelessWidget {
   const PageScaffold({
     super.key,
@@ -22,7 +24,7 @@ class PageScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.navy900,
       appBar: appBar,
       resizeToAvoidBottomInset: resizeToAvoidBottomInset,
       floatingActionButton: floatingActionButton,
@@ -35,7 +37,70 @@ class PageScaffold extends StatelessWidget {
   }
 }
 
-/// Cabecera con icono, titulo, subtitulo y acciones.
+/// Tarjeta `glass` de la PWA con desenfoque opcional.
+class GlassCard extends StatelessWidget {
+  const GlassCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+    this.radius = 16,
+    this.borderColor = AppColors.glassBorder,
+    this.gradient,
+    this.blur = false,
+    this.onTap,
+    this.borderWidth = 1,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final double radius;
+  final Color borderColor;
+  final Gradient? gradient;
+  final bool blur;
+  final VoidCallback? onTap;
+  final double borderWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final decoration = AppTheme.glass(
+      radius: radius,
+      borderColor: borderColor,
+      borderWidth: borderWidth,
+      gradient: gradient,
+    );
+
+    final content = Container(
+      padding: padding,
+      decoration: decoration,
+      child: child,
+    );
+
+    Widget surface = content;
+    if (blur) {
+      surface = ClipRRect(
+        borderRadius: BorderRadius.circular(radius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: content,
+        ),
+      );
+    }
+
+    if (onTap == null) return surface;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(radius),
+        splashColor: AppColors.tacticalBlue.withValues(alpha: 0.15),
+        highlightColor: AppColors.tacticalBlue.withValues(alpha: 0.08),
+        child: surface,
+      ),
+    );
+  }
+}
+
+/// Cabecera `glass` con icono, titulo, subtitulo y acciones.
 class ScreenHeader extends StatelessWidget implements PreferredSizeWidget {
   const ScreenHeader({
     super.key,
@@ -58,32 +123,31 @@ class ScreenHeader extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize =>
-      Size.fromHeight(72 + (bottom?.preferredSize.height ?? 0));
+      Size.fromHeight(64 + (bottom?.preferredSize.height ?? 0));
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
       automaticallyImplyLeading: false,
-      toolbarHeight: 72,
-      titleSpacing: onBack != null ? 0 : 20,
-      leadingWidth: onBack != null ? 56 : 0,
+      toolbarHeight: 64,
+      titleSpacing: onBack != null ? 0 : 16,
+      leadingWidth: onBack != null ? 52 : 0,
       leading: onBack == null
           ? null
           : IconButton(
               onPressed: onBack,
               tooltip: 'Volver',
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
             ),
       title: Row(
         children: [
           if (icon != null) ...[
             Container(
-              width: 42,
-              height: 42,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: iconColor.withValues(alpha: 0.35)),
+                color: iconColor.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: iconColor, size: 22),
             ),
@@ -101,7 +165,7 @@ class ScreenHeader extends StatelessWidget implements PreferredSizeWidget {
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2,
+                    letterSpacing: 0.1,
                   ),
                 ),
                 if (subtitle != null && subtitle!.isNotEmpty)
@@ -128,17 +192,17 @@ class ScreenHeader extends StatelessWidget implements PreferredSizeWidget {
         const SizedBox(width: 8),
       ],
       bottom: bottom,
-      backgroundColor: AppColors.background.withValues(alpha: 0.92),
+      backgroundColor: AppColors.navy800.withValues(alpha: 0.8),
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       shape: const Border(
-        bottom: BorderSide(color: AppColors.border),
+        bottom: BorderSide(color: AppColors.navy700),
       ),
     );
   }
 }
 
-/// Tarjeta base de la interfaz.
+/// Tarjeta base de la interfaz (mismo `glass` de la PWA).
 class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
@@ -147,7 +211,7 @@ class AppCard extends StatelessWidget {
     this.onTap,
     this.borderColor,
     this.backgroundColor,
-    this.radius = 18,
+    this.radius = 16,
   });
 
   final Widget child;
@@ -159,24 +223,34 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: backgroundColor ?? AppColors.surface,
+    if (backgroundColor != null) {
+      final decoration = BoxDecoration(
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: borderColor ?? AppColors.border),
-      ),
-      child: child,
-    );
+      );
+      final content = Container(
+        padding: padding,
+        decoration: decoration,
+        child: child,
+      );
+      if (onTap == null) return content;
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(radius),
+          child: content,
+        ),
+      );
+    }
 
-    if (onTap == null) return content;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(radius),
-        child: content,
-      ),
+    return GlassCard(
+      padding: padding,
+      radius: radius,
+      borderColor: borderColor ?? AppColors.glassBorder,
+      onTap: onTap,
+      child: child,
     );
   }
 }
@@ -203,7 +277,7 @@ class SectionTitle extends StatelessWidget {
               text.toUpperCase(),
               style: const TextStyle(
                 fontSize: 11.5,
-                letterSpacing: 1.1,
+                letterSpacing: 0.9,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textSecondary,
               ),
@@ -233,17 +307,17 @@ class StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       child: Row(
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(10),
+              color: color.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, size: 18, color: color),
+            child: Icon(icon, size: 17, color: color),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -255,9 +329,9 @@ class StatTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    height: 1.1,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    height: 1.05,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -280,9 +354,10 @@ class StatTile extends StatelessWidget {
 }
 
 class ErrorBanner extends StatelessWidget {
-  const ErrorBanner(this.message, {super.key});
+  const ErrorBanner(this.message, {super.key, this.icon});
 
   final String message;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -291,14 +366,14 @@ class ErrorBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.danger.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.danger.withValues(alpha: 0.45)),
+        color: AppColors.danger.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.5)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded,
+          Icon(icon ?? Icons.warning_amber_rounded,
               color: AppColors.danger, size: 19),
           const SizedBox(width: 8),
           Expanded(
@@ -317,6 +392,8 @@ class ErrorBanner extends StatelessWidget {
   }
 }
 
+/// Banner informativo generico (equivalente a los bloques de color con
+/// `bg-*/20` + `border-*/50` de la PWA).
 class InfoBanner extends StatelessWidget {
   const InfoBanner({
     super.key,
@@ -338,11 +415,12 @@ class InfoBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.40)),
+        color: color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: color, size: 22),
           const SizedBox(width: 10),
@@ -354,8 +432,8 @@ class InfoBanner extends StatelessWidget {
                   title,
                   style: TextStyle(
                     color: color,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13.5,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -364,7 +442,7 @@ class InfoBanner extends StatelessWidget {
                   style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,
-                    height: 1.3,
+                    height: 1.35,
                   ),
                 ),
               ],
@@ -406,9 +484,9 @@ class EmptyState extends StatelessWidget {
               width: 76,
               height: 76,
               decoration: BoxDecoration(
-                color: AppColors.surfaceAlt,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: AppColors.border),
+                color: AppColors.navy800.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.glassBorder),
               ),
               child: Icon(icon, size: 34, color: AppColors.textMuted),
             ),
@@ -473,6 +551,7 @@ class LoadingView extends StatelessWidget {
 }
 
 /// Logo institucional (escudo) usado en login/splash.
+/// Replica el circulo `bg-tactical-blue/20` + borde azul de la PWA.
 class AppLogo extends StatelessWidget {
   const AppLogo({super.key, this.size = 88});
 
@@ -485,28 +564,213 @@ class AppLogo extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.blue, AppColors.blueDark],
-        ),
+        color: AppColors.tacticalBlue.withValues(alpha: 0.2),
         border: Border.all(
-          color: AppColors.blueLight.withValues(alpha: 0.6),
+          color: AppColors.tacticalBlue,
           width: 2,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.blue.withValues(alpha: 0.35),
-            blurRadius: 28,
+            color: AppColors.tacticalBlue.withValues(alpha: 0.35),
+            blurRadius: 30,
             spreadRadius: 2,
           ),
         ],
       ),
       child: Icon(
         Icons.shield_rounded,
-        color: Colors.white,
-        size: size * 0.52,
+        color: AppColors.tacticalBlueLight,
+        size: size * 0.5,
       ),
     );
+  }
+}
+
+/// Animacion de entrada equivalente a `motion.div initial={{ y, opacity }}`.
+class FadeSlideIn extends StatelessWidget {
+  const FadeSlideIn({
+    super.key,
+    required this.child,
+    this.offsetY = 16,
+    this.delay = Duration.zero,
+    this.duration = AppMotion.slow,
+    this.animate = true,
+  });
+
+  final Widget child;
+  final double offsetY;
+  final Duration delay;
+  final Duration duration;
+  final bool animate;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!animate) return child;
+    final total = duration + delay;
+    final start = delay.inMilliseconds / total.inMilliseconds;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: total,
+      curve: Interval(
+        start.clamp(0.0, 0.99).toDouble(),
+        1,
+        curve: AppMotion.ease,
+      ),
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, offsetY * (1 - value)),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+/// Barra de progreso fina usada en estadisticas y preguntas falladas.
+class ThinProgressBar extends StatelessWidget {
+  const ThinProgressBar({
+    super.key,
+    required this.value,
+    required this.color,
+    this.height = 8,
+  });
+
+  final double value;
+  final Color color;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(height),
+      child: Container(
+        height: height,
+        color: AppColors.navy800,
+        child: FractionallySizedBox(
+          alignment: Alignment.centerLeft,
+          widthFactor: value.clamp(0.0, 1.0),
+          child: Container(color: color),
+        ),
+      ),
+    );
+  }
+}
+
+/// Etiqueta pequena (`px-2 py-0.5 rounded text-xs`) de la PWA.
+class TagChip extends StatelessWidget {
+  const TagChip({
+    super.key,
+    required this.label,
+    required this.color,
+    this.icon,
+    this.filled = false,
+  });
+
+  final String label;
+  final Color color;
+  final IconData? icon;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: filled ? color : color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 11, color: filled ? AppColors.navy900 : color),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: filled ? AppColors.navy900 : color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Boton compacto de acciones del panel admin
+/// (`px-3 py-1.5 text-xs rounded-lg`).
+class CompactButton extends StatelessWidget {
+  const CompactButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.color = AppColors.textPrimary,
+    this.background = AppColors.navy700,
+    this.icon,
+    this.borderColor,
+    this.expand = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final Color color;
+  final Color background;
+  final IconData? icon;
+  final Color? borderColor;
+  final bool expand;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Material(
+      color: onPressed == null ? background.withValues(alpha: 0.4) : background,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(8),
+        splashColor: color.withValues(alpha: 0.15),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: borderColor == null
+                ? null
+                : Border.all(color: borderColor!),
+          ),
+          child: Row(
+            mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+            mainAxisAlignment:
+                expand ? MainAxisAlignment.center : MainAxisAlignment.start,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 14, color: color),
+                const SizedBox(width: 5),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    color: onPressed == null
+                        ? color.withValues(alpha: 0.5)
+                        : color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return expand ? SizedBox(width: double.infinity, child: child) : child;
   }
 }
