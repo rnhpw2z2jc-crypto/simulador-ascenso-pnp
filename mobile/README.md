@@ -45,7 +45,7 @@ Salida: `mobile/build/app/outputs/flutter-apk/app-release.apk`
    ```
 2. Copia `android/key.properties.example` a `android/key.properties` y
    completa las credenciales.
-3. Coloca `upload-keystore.jks` en `mobile/android/`.
+3. Coloca `upload-keystore.jks` en `mobile/android/app/`.
 4. Ejecuta `flutter build appbundle --release`.
 
 `key.properties` y los keystores están excluidos por `.gitignore`.

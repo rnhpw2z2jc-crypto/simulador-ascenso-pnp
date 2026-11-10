@@ -96,10 +96,14 @@ class AuthRepository {
       if (!passwordOk) {
         final result = await AttemptStore.recordFailure(username);
         if (result.locked) {
-          await _users.setStatus(found.id, 'blocked');
+          try {
+            await _users.setStatus(found.id, 'blocked');
+          } catch (_) {
+            // El bloqueo local ya impide reintentos aunque falle Firestore.
+          }
           return LoginOutcome.failure(
-            'Cuenta bloqueada por 3 intentos fallidos. Espera 15 minutos '
-            'o contacta al administrador.',
+            'Cuenta bloqueada por 3 intentos fallidos. Contacta al '
+            'administrador para reactivarla.',
           );
         }
         return LoginOutcome.failure(

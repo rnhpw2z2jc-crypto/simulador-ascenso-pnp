@@ -4,7 +4,7 @@
 #   keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA \
 #           -keysize 2048 -validity 10000 -alias upload
 #
-# `storeFile` es relativo a la carpeta `android/`.
+# Coloca el keystore en `android/app/` y usa `storeFile=upload-keystore.jks`.
 storePassword=CAMBIA_ESTO
 keyPassword=CAMBIA_ESTO
 keyAlias=upload
