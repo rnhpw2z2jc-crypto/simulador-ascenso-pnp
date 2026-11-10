@@ -9,6 +9,7 @@ import '../providers/exam_flow_provider.dart';
 import '../providers/history_provider.dart';
 import '../providers/paused_exam_provider.dart';
 import '../providers/questions_provider.dart';
+import '../widgets/brand_signature.dart';
 import '../widgets/common.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -288,6 +289,8 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            const ZenakuSignature(compact: true),
           ],
         ),
       ),

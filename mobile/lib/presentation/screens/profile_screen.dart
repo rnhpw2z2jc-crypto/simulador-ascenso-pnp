@@ -8,6 +8,7 @@ import '../../data/models/app_user.dart';
 import '../../data/repositories/user_repository.dart';
 import '../providers/auth_provider.dart';
 import '../providers/history_provider.dart';
+import '../widgets/brand_signature.dart';
 import '../widgets/common.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -337,6 +338,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 14),
+          const ZenakuAboutCard(),
           const SizedBox(height: 14),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants.dart';
 import '../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/brand_signature.dart';
 import '../widgets/common.dart';
 
 /// Login replicado de `components/LoginPage.tsx`:
@@ -223,12 +224,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
+                            const ZenakuSignature(compact: true),
+                            const SizedBox(height: 4),
                             Text(
-                              'v${AppConstants.appVersion} · '
-                              '${AppConstants.firebaseProjectId}',
+                              'v${AppConstants.appVersion}',
                               style: const TextStyle(
-                                fontSize: 10,
+                                fontSize: 9.5,
                                 color: AppColors.slate600,
                               ),
                             ),

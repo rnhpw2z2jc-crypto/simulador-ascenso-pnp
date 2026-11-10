@@ -30,6 +30,9 @@ class AppColors {
   static const Color warning = Color(0xFFF59E0B);
   static const Color cyan = Color(0xFF06B6D4);
 
+  /// Acento de la marca Zenaku Tech. Se usa solo en la firma de autoría.
+  static const Color brandCyan = Color(0xFF22D3EE);
+
   // superficie / bordes
   static const Color background = navy900;
   static const Color surface = navy800;

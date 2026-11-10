@@ -8,7 +8,14 @@ class AppConstants {
 
   static const String appName = 'SIMULADOR PNP';
   static const String appSubtitle = 'Examen de Ascenso';
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '1.1.0';
+
+  // Identidad de desarrollo (Zenaku Tech).
+  static const String developerName = 'DiverZenaku';
+  static const String companyName = 'Zenaku Tech';
+  static const String companyTagline =
+      'Cybersecurity · Development · AI Solutions';
+  static const String brandingAsset = 'assets/branding/zenaku_emblem.jpg';
 
   // Proyecto Firebase existente (mismo que usa la PWA).
   static const String firebaseProjectId = 'simulador-pnp-b57f0';

@@ -122,6 +122,15 @@ voz con `flutter_tts`.
   `browser`, `status`, `reason`, `timestamp`).
 - Banco de preguntas: `assets/questions.json` (copia de `public/questions.json`).
 
+## Créditos
+
+Desarrollado por **DiverZenaku** para **Zenaku Tech**
+(Cybersecurity · Development · AI Solutions).
+
+El emblema de Zenaku Tech se incluye como asset local
+(`assets/branding/zenaku_emblem.jpg`) y se muestra de forma discreta en el
+splash, el login, el pie del dashboard y la sección "Acerca de" del perfil.
+
 ## Limitaciones conocidas
 
 - La analítica avanzada del dashboard web no se replica; el panel móvil cubre
